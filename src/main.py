@@ -1,9 +1,16 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from api_client import get_access_token, fetch_wow_token_price
 
-start = '2020-01-01'
-end = '2023-01-01'
+def main():
+    print("=== WoW Token Tracker ===")
 
-df = data.DataReader('AAPL', 'yahoo', start, end)
-df.head()
+    print("[1] Obteniendo token de acceso...")
+    token = get_access_token()
+    print(token)
+
+    print("[2] Obteniendo precio actual...")
+    data = fetch_wow_token_price(token)
+    price = data["price"]
+    print(price)
+
+
+main()
