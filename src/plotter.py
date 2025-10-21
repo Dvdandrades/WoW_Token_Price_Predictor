@@ -33,4 +33,4 @@ def plot_history(df):
     plt.tight_layout()
     
     # Save the resulting plot as an image file
-    plt.savefig("plot.png")
+    plt.savefig("data/plot.png")
