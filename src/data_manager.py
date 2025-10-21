@@ -13,9 +13,8 @@ def save_price(price_cooper):
     """
     Save the current WoW Token price to a CSV file.
 
-    This function records the current datetime (in UTC), the token price in copper,
-    and the price converted to gold. The data is appended to an existing CSV file if
-    it exists, or a new one is created otherwise.
+    This function records the current datetime (in UTC) and the token price converted to gold. 
+    The data is appended to an existing CSV file if it exists, or a new one is created otherwise.
 
     Args:
         price_cooper (int): The token price in copper units (1 gold = 10,000 copper).
@@ -30,7 +29,7 @@ def save_price(price_cooper):
     gold = price_cooper // 10000
 
     # Create a single-row DataFrame with the timestamp and prices.
-    df = pd.DataFrame([{"datetime": now, "price_cooper": price_cooper, "price_gold": gold}])
+    df = pd.DataFrame([{"datetime": now, "price_gold": gold}])
 
     # If the CSV file already exists, append without headers.
     # Otherwise, create a new CSV with headers.
@@ -52,8 +51,7 @@ def load_data():
 
     Returns:
         pandas.DataFrame: DataFrame containing the WoW Token prices with columns:
-            - datetime (datetime64[ns, UTC])
-            - price_cooper (int)
+            - datetime (datetime64)
             - price_gold (int)
 
     Raises:
