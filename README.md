@@ -4,7 +4,7 @@ A Python-based tool to **predict the in-game gold price of the WoW Token** in Wo
 
 ---
 
-## 🧮 Why this project
+## Why this project
 
 - The WoW Token allows players to exchange real money for gold (or gold for game time). The exchange rate fluctuates with in-game supply & demand, expansions, events, etc.  
 - Knowing when the token is “cheap” (in gold) can help players decide whether to buy it or wait.  
@@ -23,16 +23,21 @@ A Python-based tool to **predict the in-game gold price of the WoW Token** in Wo
 
 ### Setup using `uv`
 
-```bash
+
 # 1. Clone the repository
+```bash
 git clone https://github.com/Dvdandrades/WoW_Token_Price_Predictor.git
 cd WoW_Token_Price_Predictor
+```
 
 # 2. Create and activate an isolated environment
+```bash
 uv venv
 source .venv/bin/activate        # on macOS / Linux
 # or
 .venv\Scripts\activate           # on Windows
+```
 
 # 3. Install dependencies
+```bash
 uv sync
