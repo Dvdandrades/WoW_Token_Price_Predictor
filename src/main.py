@@ -9,7 +9,6 @@ def main():
 
     print("Getting access token...")
     token = get_access_token()
-    print(token)
 
     print("Fetching WoW Token price...")
     data = fetch_wow_token_price(token)
@@ -22,7 +21,7 @@ def main():
     print("Plotting price history...")
     plot_history(df)
 
-schedule.every(1).hours.do(main)
+schedule.every(20).minutes.do(main)
 
 while True:
     schedule.run_pending()
