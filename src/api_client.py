@@ -1,9 +1,10 @@
 import requests
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables from a .env file in the project root
-load_dotenv()
+# Load .env from the project root
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # Retrieve Blizzard API credentials and configuration
 CLIENT_ID = os.getenv("CLIENT_ID")

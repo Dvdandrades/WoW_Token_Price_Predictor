@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import os
 
 def plot_history(df):
     """
@@ -15,6 +16,16 @@ def plot_history(df):
     over time and saves it as 'plot.png' in the current working directory.
     """
     
+    # Determine the directory where this script (plotter.py) is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Build a path to the 'data' folder one level up
+    data_dir = os.path.join(script_dir, "..", "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Save plot in that directory
+    save_path = os.path.join(data_dir, "plot.png")
+
     # Create a new figure with a defined size
     plt.figure(figsize=(10, 5))
     
@@ -33,4 +44,4 @@ def plot_history(df):
     plt.tight_layout()
     
     # Save the resulting plot as an image file
-    plt.savefig("data/plot.png")
+    plt.savefig(save_path)
