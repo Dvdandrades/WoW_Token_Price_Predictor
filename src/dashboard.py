@@ -105,8 +105,8 @@ def update_graph(start_date, end_date):
                 "type": "scatter",
                 "mode": "lines+markers",
                 "hovertemplate": (
-                    "Date: %{x|%Y}<br>"
-                    "Price: %{y}<extra></extra>"
+                    "Date: %{x|%Y-%m-%d}<br>"
+                    "Price: %{y:,.0f}g<extra></extra>"
                 ),
             },
         ],
