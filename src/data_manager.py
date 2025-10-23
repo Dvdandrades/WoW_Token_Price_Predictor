@@ -4,7 +4,8 @@ from pathlib import Path
 
 # Define the path to the CSV file where WoW Token price data will be stored.
 # The path is set to "<project_root>/data/wow_token_prices.csv".
-DATA_PATH = Path(__file__).parent.parent / "data" / "wow_token_prices.csv"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = PROJECT_ROOT / "data" / "wow_token_prices.csv"
 
 # Ensure the "data" directory exists before writing files.
 DATA_PATH.parent.mkdir(exist_ok=True)
@@ -23,7 +24,7 @@ def save_price(price_cooper):
         save_price(3500000)  # Saves 350 gold at the current UTC time.
     """
     # Get the current time in UTC and format it as an ISO 8601 string.
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     # Convert copper to gold (integer division).
     gold = price_cooper // 10000
@@ -37,10 +38,6 @@ def save_price(price_cooper):
         df.to_csv(DATA_PATH, mode='a', header=False, index=False)
     else:
         df.to_csv(DATA_PATH, index=False)
-
-    # Log the save operation to the console.
-    print(f"Saved WoW Token price: {gold} gold at {now} in {DATA_PATH}")
-
 
 def load_data():
     """
@@ -63,6 +60,9 @@ def load_data():
 
     # Read the CSV file, parsing the datetime column.
     df = pd.read_csv(DATA_PATH, parse_dates=["datetime"])
+
+    # Convert datetime to naive for Dash
+    df["datetime"] = pd.to_datetime(df["datetime"], utc=True).dt.tz_localize(None)
 
     # Return the DataFrame sorted by datetime (oldest first).
     return df.sort_values("datetime")
