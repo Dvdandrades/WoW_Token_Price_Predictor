@@ -6,12 +6,14 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # Load environment variables from the project's root .env file
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 # Retrieve Blizzard API credentials and configuration from environment variables
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REGION = os.getenv("REGION", "eu")  # Defaults to EU region if unspecified
+LOCALE = "en_US"
 
 # Construct key Blizzard API URLs based on the selected region
 OAUTH_URL = f"https://{REGION}.battle.net/oauth/token"        # OAuth2 token endpoint
@@ -19,7 +21,7 @@ API_BASE_URL = f"https://{REGION}.api.blizzard.com"            # Base API URL fo
 NAMESPACE = f"dynamic-{REGION}"                                # Namespace defines data type/region context
 
 # Define token cache file location for reusing access tokens between runs
-TOKEN_CACHE_FILE = Path(__file__).resolve().parent.parent / "data" / "token_cache.json"
+TOKEN_CACHE_FILE = PROJECT_ROOT / "data" / "token_cache.json"
 
 def load_token_cache():
     """
@@ -85,14 +87,17 @@ def get_access_token():
         raise ValueError("CLIENT_ID and CLIENT_SECRET must be set in environment variables.")
 
     # Prepare request payload for OAuth2 'client_credentials' grant
-    data = {'grant_type': 'client_credentials'}
+    json_data = {'grant_type': 'client_credentials'}
 
     # Request a new token from Blizzard's OAuth2 endpoint
-    response = requests.post(OAUTH_URL, data=data, auth=(CLIENT_ID, CLIENT_SECRET))
-    response.raise_for_status()  # Raise error if authentication fails
+    try:
+        response = requests.post(OAUTH_URL, json=json_data, auth=(CLIENT_ID, CLIENT_SECRET))
+        response.raise_for_status()  # Raise error if authentication fails
+    except requests.exceptions.RequestException as e:
+        raise requests.exceptions.RequestException(f"Failed to obtain access token: {e}")
 
     token_data = response.json()
-    token = token_data['access_token']
+    token = token_data.get("access_token")
     expiry = token_data.get('expires_in', 3600)  # Fallback to 1 hour if missing
 
     # Save token locally for reuse
@@ -100,7 +105,7 @@ def get_access_token():
 
     return token
 
-def fetch_wow_token_price(access_token=None, locale='en_US'):
+def fetch_wow_token_price(access_token=None, locale=LOCALE):
     """
     Retrieve the current World of Warcraft Token price from Blizzard's Game Data API.
 
@@ -131,8 +136,16 @@ def fetch_wow_token_price(access_token=None, locale='en_US'):
     headers = {'Authorization': f'Bearer {access_token}'}
 
     # Perform the API call
-    response = requests.get(url, params=params, headers=headers)
-    response.raise_for_status()  # Raise exception if API returns an error
+    try:
+        response = requests.get(url, params=params, headers=headers)
+        response.raise_for_status()  # Raise exception if API returns an error
+    except requests.exceptions.RequestException as e:
+        raise requests.exceptions.RequestException(f"Failed to fetch WoW Token price: {e}")
+    
+    token_data = response.json()
+
+    if "price" not in token_data:
+        raise KeyError(f"API response missing 'price' key. Data: {token_data}")
 
     # Return parsed JSON response with WoW token data
-    return response.json()
+    return token_data
