@@ -1,6 +1,7 @@
 from api_client import get_access_token, fetch_wow_token_price
 from data_manager import save_price, load_data
 from plotter import plot_history
+from dashboard import app
 import schedule
 import time
 
@@ -21,8 +22,12 @@ def main():
     print("Plotting price history...")
     plot_history(df)
 
-schedule.every(20).minutes.do(main)
+    app.run(debug=True)
+
+"""schedule.every(20).minutes.do(main)
 
 while True:
     schedule.run_pending()
-    time.sleep(1)
+    time.sleep(1)"""
+
+main()
