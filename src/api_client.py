@@ -5,57 +5,57 @@ import json
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Load environment variables from the project's root .env file
+# Load environment variables from the project’s root .env file
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
 # Retrieve Blizzard API credentials and configuration from environment variables
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REGION = os.getenv("REGION", "eu")  # Defaults to EU region if unspecified
+REGION = os.getenv("REGION", "eu")  # Default to EU if unspecified
 LOCALE = "en_US"
 
-# Construct key Blizzard API URLs based on the selected region
-OAUTH_URL = f"https://{REGION}.battle.net/oauth/token"        # OAuth2 token endpoint
-API_BASE_URL = f"https://{REGION}.api.blizzard.com"            # Base API URL for data requests
-NAMESPACE = f"dynamic-{REGION}"                                # Namespace defines data type/region context
+# Construct Blizzard API endpoints based on the selected region
+OAUTH_URL = f"https://{REGION}.battle.net/oauth/token"  # OAuth2 token endpoint
+API_BASE_URL = f"https://{REGION}.api.blizzard.com"     # Base API URL
+NAMESPACE = f"dynamic-{REGION}"                         # Defines data type/region context
 
-# Define token cache file location for reusing access tokens between runs
+# Define where to cache OAuth tokens for reuse between runs
 TOKEN_CACHE_FILE = PROJECT_ROOT / "data" / "token_cache.json"
+
 
 def load_token_cache():
     """
-    Load a previously saved OAuth access token from the cache file if valid.
+    Load a cached OAuth2 access token if it exists and is still valid.
 
-    The cache includes both the token and its expiry timestamp. If the token
-    is still valid (i.e., not expired), it is returned; otherwise, None is returned.
+    The cache file stores both the token and its expiry timestamp. If the
+    cached token is still valid (not expired), it will be returned.
 
     Returns:
-        str or None: Cached access token if valid, otherwise None.
+        str | None: The cached access token if valid, otherwise None.
     """
     if TOKEN_CACHE_FILE.exists():
         with open(TOKEN_CACHE_FILE, 'r') as f:
             data = json.load(f)
-            # Check token validity against current time
+            # Return cached token only if it's still within its valid timeframe
             if time.time() < data.get('expiry', 0):
-                return data.get('access_token')  
+                return data.get('access_token')
     return None
 
 
 def save_token_cache(token, expiry):
     """
-    Save the newly obtained OAuth access token to a local cache file.
+    Save an OAuth2 access token and its expiry time to a local cache file.
 
     Args:
         token (str): The OAuth2 access token string.
-        expiry (int): Token lifespan in seconds.
+        expiry (int): Token lifetime in seconds.
     """
-    # Ensure the cache directory exists before writing
     TOKEN_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     data = {
         "access_token": token,
-        # Subtract 60 seconds to refresh the token slightly before expiration
+        # Refresh token slightly before actual expiration
         "expiry": time.time() + expiry - 60
     }
 
@@ -65,87 +65,85 @@ def save_token_cache(token, expiry):
 
 def get_access_token():
     """
-    Obtain a cached OAuth2 access token or request a new one if expired or missing.
+    Retrieve a valid OAuth2 access token for Blizzard’s API.
 
-    Uses the 'client_credentials' grant type suitable for backend or server-to-server
-    communication with Blizzard APIs (no user authentication required).
+    Checks for a cached token first. If none is found or it’s expired,
+    a new token is requested using the 'client_credentials' grant type.
 
     Returns:
-        str: A valid OAuth2 access token for authenticating Blizzard API requests.
+        str: A valid OAuth2 access token.
 
     Raises:
-        ValueError: If CLIENT_ID or CLIENT_SECRET is not set.
-        requests.exceptions.HTTPError: If the API call fails.
+        ValueError: If CLIENT_ID or CLIENT_SECRET is missing.
+        requests.exceptions.RequestException: If the token request fails.
     """
-    # Try using a cached token first
+    # Use cached token if available
     token = load_token_cache()
     if token:
         return token
 
-    # Validate that credentials exist before making a network call
+    # Ensure required credentials are set
     if not CLIENT_ID or not CLIENT_SECRET:
         raise ValueError("CLIENT_ID and CLIENT_SECRET must be set in environment variables.")
 
-    # Prepare request payload for OAuth2 'client_credentials' grant
+    # Prepare OAuth2 token request payload
     json_data = {'grant_type': 'client_credentials'}
 
-    # Request a new token from Blizzard's OAuth2 endpoint
     try:
         response = requests.post(OAUTH_URL, json=json_data, auth=(CLIENT_ID, CLIENT_SECRET))
-        response.raise_for_status()  # Raise error if authentication fails
+        response.raise_for_status()
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(f"Failed to obtain access token: {e}")
 
     token_data = response.json()
     token = token_data.get("access_token")
-    expiry = token_data.get('expires_in', 3600)  # Fallback to 1 hour if missing
+    expiry = token_data.get("expires_in", 3600)  # Default lifespan: 1 hour
 
-    # Save token locally for reuse
+    # Cache token for future reuse
     save_token_cache(token, expiry)
-
     return token
+
 
 def fetch_wow_token_price(access_token=None, locale=LOCALE):
     """
-    Retrieve the current World of Warcraft Token price from Blizzard's Game Data API.
+    Retrieve the current World of Warcraft Token price via Blizzard’s API.
 
     Args:
         access_token (str, optional): OAuth2 access token. If None, a new one is fetched.
-        locale (str, optional): Desired response locale.
+        locale (str, optional): Response locale (default: 'en_US').
 
     Returns:
-        dict: JSON response containing WoW Token data (price, last_updated_timestamp, etc.).
+        dict: The JSON response containing WoW Token data such as price and last update time.
 
     Raises:
-        requests.exceptions.HTTPError: If the API call fails (e.g., invalid token, bad parameters).
+        requests.exceptions.RequestException: If the API request fails.
+        KeyError: If the 'price' field is missing in the response.
     """
-    # Automatically fetch a token if one wasn't provided
+    # Automatically obtain a token if not provided
     if access_token is None:
         access_token = get_access_token()
 
-    # Construct endpoint for WoW Token data
+    # WoW Token API endpoint
     url = f"{API_BASE_URL}/data/wow/token/index"
 
-    # Attach required query parameters
+    # Query parameters for data and locale context
     params = {
-        'namespace': NAMESPACE,  # Selects the correct data region/type
-        'locale': locale,        # Defines response language
+        'namespace': NAMESPACE,
+        'locale': locale,
     }
 
-    # Include the bearer token in request headers for authentication
+    # Include bearer token in authorization header
     headers = {'Authorization': f'Bearer {access_token}'}
 
-    # Perform the API call
     try:
         response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()  # Raise exception if API returns an error
+        response.raise_for_status()
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(f"Failed to fetch WoW Token price: {e}")
-    
+
     token_data = response.json()
 
     if "price" not in token_data:
-        raise KeyError(f"API response missing 'price' key. Data: {token_data}")
+        raise KeyError(f"API response missing 'price' key. Response data: {token_data}")
 
-    # Return parsed JSON response with WoW token data
     return token_data
