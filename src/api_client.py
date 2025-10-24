@@ -16,7 +16,7 @@ REGION = os.getenv("REGION", "eu")  # Default to EU if unspecified
 LOCALE = "en_US"
 
 # Construct Blizzard API endpoints based on the selected region
-OAUTH_URL = f"https://{REGION}.battle.net/oauth/token"  # OAuth2 token endpoint
+OAUTH_URL = "https://oauth.battle.net/token"  # OAuth2 token endpoint
 API_BASE_URL = f"https://{REGION}.api.blizzard.com"     # Base API URL
 NAMESPACE = f"dynamic-{REGION}"                         # Defines data type/region context
 
@@ -87,10 +87,10 @@ def get_access_token():
         raise ValueError("CLIENT_ID and CLIENT_SECRET must be set in environment variables.")
 
     # Prepare OAuth2 token request payload
-    json_data = {'grant_type': 'client_credentials'}
+    data = {'grant_type': 'client_credentials'}
 
     try:
-        response = requests.post(OAUTH_URL, json=json_data, auth=(CLIENT_ID, CLIENT_SECRET))
+        response = requests.post(OAUTH_URL, data=data, auth=(CLIENT_ID, CLIENT_SECRET))
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         raise requests.exceptions.RequestException(f"Failed to obtain access token: {e}")
