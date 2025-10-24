@@ -38,31 +38,3 @@ def save_price(price_cooper):
         df.to_csv(DATA_PATH, mode='a', header=False, index=False)
     else:
         df.to_csv(DATA_PATH, index=False)
-
-def load_data():
-    """
-    Load all saved WoW Token price data from the CSV file.
-
-    Reads the CSV into a pandas DataFrame, parsing the datetime column,
-    and returns the data sorted by time in ascending order.
-
-    Returns:
-        pandas.DataFrame: DataFrame containing the WoW Token prices with columns:
-            - datetime (datetime64)
-            - price_gold (int)
-
-    Raises:
-        FileNotFoundError: If the data file does not exist.
-    """
-    # Check if the CSV file exists before attempting to read.
-    if not DATA_PATH.exists():
-        raise FileNotFoundError(f"No data file found at {DATA_PATH}")
-
-    # Read the CSV file, parsing the datetime column.
-    df = pd.read_csv(DATA_PATH, parse_dates=["datetime"])
-
-    # Convert datetime to naive for Dash
-    df["datetime"] = pd.to_datetime(df["datetime"], utc=True).dt.tz_localize(None)
-
-    # Return the DataFrame sorted by datetime (oldest first).
-    return df.sort_values("datetime")
