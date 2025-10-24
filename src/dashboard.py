@@ -1,18 +1,13 @@
 import pandas as pd
+import time
 from dash import Dash, dcc, html, Input, Output
 from pathlib import Path
+from flask_caching import Cache
 
-# Data Loading and Preparation
-# Read the WoW Token price dataset, ensure 'datetime' is parsed as a datetime,
-# and sort chronologically to prepare for time series visualization.
-data = (
-    pd.read_csv(Path(__file__).parent.parent / "data" / "wow_token_prices.csv",
-                parse_dates=["datetime"])
-    .sort_values(by="datetime")
-)
-
-# Convert timezone-aware datetimes to naive for compatibility
-data["datetime"] = pd.to_datetime(data["datetime"], utc=True).dt.tz_localize(None)
+# Paths
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = Path(__file__).parent.parent / "data" / "wow_token_prices.csv"
+ASSET_PATH = PROJECT_ROOT / "assets"
 
 # Dash App Configuration and Styling
 # External stylesheet: Google Fonts (Lato)
@@ -26,12 +21,28 @@ external_stylesheet = [
     },
 ]
 
-# Define the assets folder path for CSS.
-assets_path = Path(__file__).parent.parent / "assets"
-
 # Initialize the Dash app with external styles and assets
-app = Dash(__name__, assets_folder=assets_path, external_stylesheets=external_stylesheet)
+app = Dash(__name__, assets_folder=ASSET_PATH, external_stylesheets=external_stylesheet)
 app.title = "WoW Token Price"  # Title shown in browser tab
+
+cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
+
+@cache.memoize(timeout=60 * 5)
+def load_data(mtime):
+    if not DATA_PATH.exists():
+        return pd.DataFrame(columns=["datetime", "price_gold"])
+    
+    df = pd.read_csv(
+        DATA_PATH, 
+        parse_dates=["datetime"],
+        names=["datetime", "price_gold"], 
+        # Add a check to ensure the header is explicitly read from the first row
+        header=0,
+        dtype={"price_gold": int}
+    ).sort_values(by="datetime")
+
+    df["datetime"] = pd.to_datetime(df["datetime"], utc=True).dt.tz_localize(None)
+    return df
 
 # App Layout Definition
 app.layout = html.Div(
@@ -61,10 +72,8 @@ app.layout = html.Div(
                         # DatePickerRange allows user to select a date window
                         dcc.DatePickerRange(
                             id="date-range",
-                            min_date_allowed=data["datetime"].min().date(),
-                            max_date_allowed=data["datetime"].max().date(),
-                            start_date=data["datetime"].min().date(),
-                            end_date=data["datetime"].max().date(),
+                            min_date_allowed=None,
+                            max_date_allowed=None,
                         ),
                     ]
                 ),
@@ -83,6 +92,7 @@ app.layout = html.Div(
                     ),
                     className="card",
                 ),
+                dcc.Interval(id="interval-check", interval=20 * 60 * 1000, n_intervals=0),
             ],
             className="wrapper",
         ),
@@ -92,10 +102,15 @@ app.layout = html.Div(
 # Callback: Update Graph Based on User Input
 @app.callback(
     Output("token-line-plot", "figure"),
+    Output("date-range", "min_date_allowed"),
+    Output("date-range", "max_date_allowed"),
+    Output("date-range", "start_date"),
+    Output("date-range", "end_date"),
     Input("date-range", "start_date"),
     Input("date-range", "end_date"),
+    Input("interval-check", "n_intervals"),
 )
-def update_graph(start_date, end_date):
+def update_graph(start_date, end_date, n_intervals):
     """
     Update the token price line chart based on the selected date range.
 
@@ -113,10 +128,38 @@ def update_graph(start_date, end_date):
             - 'data': the line chart trace(s)
             - 'layout': chart appearance configuration
     """
-    # Filter dataset by user-selected date range
-    date_filtered = data.query("(`datetime` >= @start_date) & (`datetime` <= @end_date)")
+    try:
+        mtime = DATA_PATH.stat().st_mtime
+    except FileNotFoundError:
+        mtime = time.time()
 
-    # Define figure for the line plot
+    df = load_data(mtime)
+
+    if df.empty:
+        return (
+            {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
+            None, None, None, None
+        )
+
+    min_date = df["datetime"].min().date().isoformat()
+    max_date = df["datetime"].max().date().isoformat()
+    new_start_date = start_date or min_date
+    new_end_date = end_date or max_date
+
+    start_dt = pd.to_datetime(new_start_date)
+    end_dt = pd.to_datetime(new_end_date) + pd.Timedelta(days=1)
+
+    date_filtered = df[
+        (df["datetime"] >= start_dt) & 
+        (df["datetime"] < end_dt)
+    ]
+
+    if date_filtered.empty:
+         return (
+            {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
+            min_date, max_date, new_start_date, new_end_date
+        )
+
     line_figure = {
         "data": [
             {
@@ -125,8 +168,8 @@ def update_graph(start_date, end_date):
                 "type": "scatter",
                 "mode": "lines+markers",
                 "hovertemplate": (
-                    "Date: %{x|%Y}<br>"
-                    "Price: %{y}<extra></extra>"
+                    "Date: %{x|%Y-%m-%d %H:%M:%S}<br>"
+                    "Price: %{y} Gold<extra></extra>"
                 ),
             },
         ],
@@ -138,9 +181,4 @@ def update_graph(start_date, end_date):
         },
     }
 
-    return line_figure
-
-# Entry Point: Run the Dash Application
-if __name__ == "__main__":
-    # Run the Dash app in debug mode for live reloading and error display
-    app.run(debug=True)
+    return line_figure, min_date, max_date, new_start_date, new_end_date
