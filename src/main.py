@@ -48,4 +48,4 @@ if __name__ == "__main__":
     scheduler_thread.start()
     
     # Start the Flask web dashboard, which runs indefinitely on the main thread.
-    app.run(debug=True)
+    app.run(debug=False)
