@@ -65,9 +65,9 @@ def save_token_cache(token, expiry):
 
 def get_access_token():
     """
-    Retrieve a valid OAuth2 access token for Blizzard’s API.
+    Retrieve a valid OAuth2 access token for Blizzard's API.
 
-    Checks for a cached token first. If none is found or it’s expired,
+    Checks for a cached token first. If none is found or it's expired,
     a new token is requested using the 'client_credentials' grant type.
 
     Returns:
@@ -106,7 +106,7 @@ def get_access_token():
 
 def fetch_wow_token_price(access_token=None, locale=LOCALE):
     """
-    Retrieve the current World of Warcraft Token price via Blizzard’s API.
+    Retrieve the current World of Warcraft Token price via Blizzard's API.
 
     Args:
         access_token (str, optional): OAuth2 access token. If None, a new one is fetched.
