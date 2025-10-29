@@ -1,4 +1,4 @@
-from api_client import get_access_token, fetch_wow_token_price
+from api_client import BlizzardAPIClient, CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE
 from data_manager import save_price
 from dashboard import app
 import time
@@ -6,17 +6,21 @@ import schedule
 import threading
 
 def main():
+    """
+    The main data collection function. 
+    It fetches the current WoW Token price and saves it to the database.
+    """
     print(f"\n--- WoW Token Tracker ---")
 
     try:
-        # Obtain the OAuth access token required for the Blizzard API
-        print("Getting access token...")
-        token = get_access_token()
+
+        # Initialize the Blizzard API client with necessary credentials and settings.
+        client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE)
 
         # Fetch the current WoW Token price using the access token
         print("Fetching WoW Token price...")
-        data = fetch_wow_token_price(token)
-        price = data["price"]
+        data = client.fetch_wow_token_price()
+        price = data["price"] # Extract the price value from the returned data
         
         # Save the fetched price data to the database
         save_price(price)
