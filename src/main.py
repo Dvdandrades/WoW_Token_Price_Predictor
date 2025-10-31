@@ -1,55 +1,68 @@
 from api_client import BlizzardAPIClient, CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE
-from data_manager import save_price
+from data_manager import save_price, initialize_db
 from dashboard import app
 import time
 import schedule
 import threading
+import requests
 
+try:
+    # Initialize the Blizzard API Client with credentials and regional settings.
+    api_client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE)
+except ValueError as e:
+    # Error when initializing the client.
+    print(f"ERROR: API Client initialization failed: {e}")
+    api_client = None
+
+# Ensure the database is initialized (creates tables if they don't exist).
+initialize_db()
+    
 def main():
-    """
-    The main data collection function. 
-    It fetches the current WoW Token price and saves it to the database.
-    """
-    print(f"\n--- WoW Token Tracker ---")
+    # Start of the WoW Token price tracking task.
+    print(f"\n--- WoW Token Tracker: Starting Data Fetch Task ---")
+
+    if api_client is None:
+        # Stop the task if the API client failed to initialize earlier.
+        print("ERROR: API client is not initialized. Skipping data fetch.")
+        return
 
     try:
+        # Fetch the current WoW Token price data from the Blizzard API.
+        data = api_client.fetch_wow_token_price()
 
-        # Initialize the Blizzard API client with necessary credentials and settings.
-        client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE)
+        # Extract the price value from the response data.
+        price = data["price"]
 
-        # Fetch the current WoW Token price using the access token
-        print("Fetching WoW Token price...")
-        data = client.fetch_wow_token_price()
-        price = data["price"] # Extract the price value from the returned data
-        
-        # Save the fetched price data to the database
+        # Save the fetched price to the database.
         save_price(price)
-        
+
+    except requests.exceptions.RequestException as e:
+        # Error during the API request.
+        print(f"ERROR: API request failed (Network/HTTP error): {e}")
+    except KeyError as e:
+        # Error if the expected 'price' key is missing from the API response.
+        print(f"ERROR: Failed to parse API response. Missing expected key: {e}")
     except Exception as e:
-        # Log any errors that occur during the fetch/save process
-        print(f"An error occurred during tracking: {e}")
+        # Catch any other unexpected errors during the tracking process.
+        print(f"An unexpected error occurred during the tracking process: {e}")
+
 
 def run_schedule():
-    """
-    Sets up the recurring task for data collection and keeps the scheduler running.
-    This function is executed in a separate thread to prevent blocking the web server.
-    """
-    # Schedule the 'main' function to run every 20 minutes
+    # Schedule the 'main' function to run at a regular interval.
     schedule.every(20).minutes.do(main)
-    
-    # Loop continuously to check for and execute pending scheduled jobs
+
+    # Continuous loop to check for and execute pending scheduled jobs.
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 if __name__ == "__main__":
-    # Run 'main' immediately to fetch the first data point upon startup
+    # Execute 'main' immediately to get the first data point upon startup.
     main()
-    
-    # Start the scheduler in a separate, non-blocking thread. 
-    # daemon=True ensures the thread exits when the main process exits.
+
+    # Start the scheduler in a separate thread to run the tracking task in the background.
     scheduler_thread = threading.Thread(target=run_schedule, daemon=True)
     scheduler_thread.start()
-    
-    # Start the Flask web dashboard, which runs indefinitely on the main thread.
+
+    # Start the Dash web dashboard, which serves the data visualization.
     app.run(debug=False)

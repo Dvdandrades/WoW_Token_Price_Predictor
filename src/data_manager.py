@@ -1,40 +1,69 @@
 import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
+import sqlite3
 
-# Define the path to the CSV file where WoW Token price data will be stored.
-# The path is set to "<project_root>/data/wow_token_prices.csv".
+# Define the project root directory. Assuming the script is in a subdirectory (e.g., 'src').
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_ROOT / "data" / "wow_token_prices.csv"
 
-# Ensure the "data" directory exists before writing files.
-DATA_PATH.parent.mkdir(exist_ok=True)
+# Define the full path for the SQLite database file where WoW Token price data will be stored.
+# The path is set to "<project_root>/data/wow_token_prices.db".
+DB_PATH = PROJECT_ROOT / "data" / "wow_token_prices.db"
+
+# Ensure the 'data' directory exists within the project root before attempting to create the database file.
+DB_PATH.parent.mkdir(exist_ok=True)
+
+
+def initialize_db():
+    """
+    Initializes the SQLite database and creates the 'token_prices' table
+    if it does not already exist.
+    The table stores the timestamp and the WoW Token price in gold.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS token_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            datetime TEXT NOT NULL,
+            price_gold INTEGER NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 def save_price(price_cooper):
     """
-    Save the current WoW Token price to a CSV file.
-
-    This function records the current datetime (in UTC) and the token price converted to gold. 
-    The data is appended to an existing CSV file if it exists, or a new one is created otherwise.
-
+    Saves the WoW Token price to the SQLite database.
+    
+    The input price is assumed to be in cooper (1 gold = 10,000 cooper).
+    It converts the price to gold and stores it with the current UTC timestamp.
+    
     Args:
-        price_cooper (int): The token price in copper units (1 gold = 10,000 copper).
-
-    Example:
-        save_price(3500000)  # Saves 350 gold at the current UTC time.
+        price_cooper (int): The WoW Token price in cooper coins.
     """
-    # Get the current time in UTC and format it as an ISO 8601 string.
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    conn = sqlite3.connect(DB_PATH)
 
-    # Convert copper to gold (integer division).
-    gold = price_cooper // 10000
+    try:
+        # Get the current time in UTC and format it for database storage
+        now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Convert the price from cooper to gold (10,000 cooper = 1 gold)
+        gold = price_cooper // 10000
+        
+        # Create a DataFrame for easy insertion into the database
+        df = pd.DataFrame([{"datetime": now_utc, "price_gold": gold}])
+        
+        # Insert the data into the 'token_prices' table
+        df.to_sql("token_prices", conn, if_exists="append", index=False)
+        
+        print(f"[{now_utc} UTC] WoW Token price successfully saved to SQLite: {gold} gold.")
 
-    # Create a single-row DataFrame with the timestamp and prices.
-    df = pd.DataFrame([{"datetime": now, "price_gold": gold}])
+    except Exception as e:
+        # Detailed error message for any failure during the save operation
+        print(f"**ERROR:** Failed to save price data to the database. Details: {e}")
 
-    # If the CSV file already exists, append without headers.
-    # Otherwise, create a new CSV with headers.
-    if DATA_PATH.exists():
-        df.to_csv(DATA_PATH, mode='a', header=False, index=False)
-    else:
-        df.to_csv(DATA_PATH, index=False)
+    finally:
+        # Ensure the database connection is always closed
+        conn.close()

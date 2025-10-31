@@ -3,15 +3,16 @@ import time
 from dash import Dash, dcc, html, Input, Output
 from pathlib import Path
 from flask_caching import Cache
+import sqlite3
+import os
+from data_manager import DB_PATH
 
 # Path Configuration
-# Define important project directories
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = Path(__file__).parent.parent / "data" / "wow_token_prices.csv"
 ASSET_PATH = PROJECT_ROOT / "assets"
 
 # Dash App Configuration
-# External stylesheet: Google Fonts (Lato)
+# External stylesheet: Google Fonts (Lato) is loaded for styling.
 external_stylesheet = [
     {
         "href": (
@@ -23,50 +24,68 @@ external_stylesheet = [
 ]
 
 # Initialize the Dash application
-# - `assets_folder` specifies the directory for CSS
+# - `assets_folder` specifies the directory for local CSS/assets
 # - `external_stylesheets` loads Google Fonts styling
 app = Dash(__name__, assets_folder=ASSET_PATH, external_stylesheets=external_stylesheet)
 app.title = "WoW Token Price"  # Browser tab title
 
-# Enable simple in-memory caching for improved performance
+# Enable simple in-memory caching for improved performance.
+# Cache is attached to the Flask server instance within the Dash app.
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
+
+def get_db_mtime():
+    """Returns the modification time of the SQLite database file."""
+    if DB_PATH.exists():
+        return os.path.getmtime(DB_PATH)
+    # Return current time if file doesn't exist, preventing cache issues on startup.
+    return time.time()
 
 # Data Loading Function
 @cache.memoize(timeout=60 * 5)  # Cache data for 5 minutes
 def load_data(mtime):
     """
-    Load and preprocess the WoW token price data.
+    Load and preprocess the WoW token price data from the SQLite database.
+
+    The 'mtime' parameter forces cache invalidation when the underlying database file changes.
 
     Parameters
     ----------
     mtime : float
-        Modification time of the CSV file used to invalidate cache.
+        Modification time of the database file used to invalidate the cache.
 
     Returns
     -------
     pandas.DataFrame
-        A sorted dataframe containing 'datetime' and 'price_gold' columns.
+        A sorted DataFrame containing 'datetime' (tz-naive) and 'price_gold' columns.
+        Returns an empty DataFrame if the database file is not found or an error occurs.
     """
-    if not DATA_PATH.exists():
+    if not DB_PATH.exists():
+        # Log absence and return empty frame
+        print(f"Database not found at {DB_PATH}. Returning empty DataFrame.")
         return pd.DataFrame(columns=["datetime", "price_gold"])
 
-    # Read CSV with datetime parsing and explicit header handling
-    df = pd.read_csv(
-        DATA_PATH,
-        parse_dates=["datetime"],
-        names=["datetime", "price_gold"],
-        header=0,  # ensures the first row is treated as a header
-        dtype={"price_gold": int},
-    ).sort_values(by="datetime")
+    try:
+        conn = sqlite3.connect(DB_PATH)
 
-    # Normalize datetime
-    df["datetime"] = pd.to_datetime(df["datetime"], utc=True).dt.tz_localize(None)
-    return df
+        # Execute SQL query to get all sorted data
+        df = pd.read_sql_query(
+            "SELECT datetime, price_gold FROM token_prices ORDER BY datetime",
+            conn
+        )
+        conn.close()
 
-# App Layout
+        # Data Preprocessing: Convert datetime and price to correct types
+        df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize(None) # Remove timezone info
+        df["price_gold"] = df["price_gold"].astype(int)
+        return df
+    except sqlite3.Error as e:
+        print(f"SQLite Error during data loading: {e}")
+        return pd.DataFrame(columns=["datetime", "price_gold"])
+
+# App Layout Definition
 app.layout = html.Div(
     children=[
-        # Header Section
+        # Header Section: Contains title and description
         html.Div(
             children=[
                 html.P(children="🪙", className="header-emoji"),
@@ -82,13 +101,13 @@ app.layout = html.Div(
             className="header",
         ),
 
-        # Menu Section
+        # Menu Section: Contains interactive filters
         html.Div(
             children=[
                 html.Div(
                     children=[
-                        html.Div(children="Date", className="menu-title"),
-                        # Allows the user to select a date range
+                        html.Div(children="Date Range Selection", className="menu-title"),
+                        # DatePickerRange allows the user to select a date range
                         dcc.DatePickerRange(
                             id="date-range",
                             min_date_allowed=None,
@@ -100,18 +119,19 @@ app.layout = html.Div(
             className="menu",
         ),
 
-        # Visualization Section
+        # Visualization Section: Holds the main line chart and the auto-refresh interval
         html.Div(
             children=[
                 # Card container for the line chart
                 html.Div(
                     children=dcc.Graph(
                         id="token-line-plot",
-                        config={"displayModeBar": False},  # hides the Plotly toolbar
+                        config={"displayModeBar": False},  # Hides the Plotly toolbar
                     ),
                     className="card",
                 ),
                 # Interval component triggers periodic data refresh (every 20 minutes)
+                # This causes the callback to fire, which checks for new data via cache invalidation.
                 dcc.Interval(id="interval-check", interval=20 * 60 * 1000, n_intervals=0),
             ],
             className="wrapper",
@@ -119,7 +139,7 @@ app.layout = html.Div(
     ]
 )
 
-# Callback: Update Graph
+# Callback: Update Graph and Date Picker Limits
 @app.callback(
     Output("token-line-plot", "figure"),
     Output("date-range", "min_date_allowed"),
@@ -128,49 +148,54 @@ app.layout = html.Div(
     Output("date-range", "end_date"),
     Input("date-range", "start_date"),
     Input("date-range", "end_date"),
-    Input("interval-check", "n_intervals"),
+    Input("interval-check", "n_intervals"), # Dependency to trigger refresh
 )
 def update_graph(start_date, end_date, n_intervals):
     """
-    Update the line chart based on the selected date range and data refresh interval.
+    Updates the line chart and sets the allowed boundaries for the DatePickerRange.
+
+    Data is refreshed every 'n_intervals' trigger (20 minutes) by checking the database
+    modification time to bypass the `load_data` function's cache if needed.
 
     Parameters
     ----------
-    start_date : str
-        Start date selected from the date picker.
-    end_date : str
-        End date selected from the date picker.
+    start_date : str | None
+        Start date selected by the user (or None if unselected).
+    end_date : str | None
+        End date selected by the user (or None if unselected).
     n_intervals : int
-        Counter that increments every interval (used to trigger data refresh).
+        Counter for the interval component, used to force a refresh check.
 
     Returns
     -------
     tuple
-        (figure, min_date, max_date, start_date, end_date)
+        (figure: dict, min_date: str, max_date: str, new_start_date: str, new_end_date: str)
+        The Plotly figure dictionary and the updated date picker properties.
     """
-    # Retrieve the file's modification time for cache invalidation
-    try:
-        mtime = DATA_PATH.stat().st_mtime
-    except FileNotFoundError:
-        mtime = time.time()
+    # Retrieve the file's modification time for cache invalidation key in load_data
+    mtime = get_db_mtime()
 
-    # Load the cached or fresh data
+    # Load the cached or fresh data based on mtime
     df = load_data(mtime)
 
     # Handle case: no data available
     if df.empty:
+        # Return a placeholder figure and reset all date picker properties
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
             None, None, None, None
         )
 
-    # Establish the date range boundaries
+    # Establish the date range boundaries based on loaded data
     min_date = df["datetime"].min().date().isoformat()
     max_date = df["datetime"].max().date().isoformat()
+
+    # Set default date range to the full extent of the data if no selection is made
     new_start_date = start_date or min_date
     new_end_date = end_date or max_date
 
-    # Convert selected dates to datetime for filtering
+    # Convert selected dates to datetime objects for filtering.
+    # Add one day to the end date to include all data points up to the end of that day.
     start_dt = pd.to_datetime(new_start_date)
     end_dt = pd.to_datetime(new_end_date) + pd.Timedelta(days=1)
 
@@ -179,12 +204,13 @@ def update_graph(start_date, end_date, n_intervals):
 
     # Handle case: no data within selected range
     if date_filtered.empty:
+        # Return a placeholder figure but keep the date boundaries and selections intact
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
             min_date, max_date, new_start_date, new_end_date
         )
 
-    # Construct Plotly figure
+    # Construct Plotly figure definition
     line_figure = {
         "data": [
             {
@@ -199,11 +225,14 @@ def update_graph(start_date, end_date, n_intervals):
             },
         ],
         "layout": {
+            # Title for the visualization
             "title": {"text": "WoW Token Price Over Time", "x": 0.05, "xanchor": "left"},
+            # Axis labels and range properties
             "xaxis": {"title": "Date", "fixedrange": True},
             "yaxis": {"title": "Price in Gold", "fixedrange": True},
-            "colorway": ["#17B897"],
+            "colorway": ["#17B897"], # Teal color for the line
         },
     }
 
+    # Return the figure and the updated date picker properties
     return line_figure, min_date, max_date, new_start_date, new_end_date
