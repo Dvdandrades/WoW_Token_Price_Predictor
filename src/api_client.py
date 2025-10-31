@@ -71,14 +71,13 @@ class BlizzardAPIClient:
     def _save_token_cache(self, token, expiry):
         """
         Saves the new access token and its calculated expiry time to the cache file.
-        The expiry is reduced by 300 seconds (5 minutes) for a safe time buffer.
         """
         # Ensure the directory for the cache file exists.
         self.token_cache_file.parent.mkdir(parents=True, exist_ok=True)
         data = {
            "access_token": token,
            # Calculate absolute expiry time: current time + token lifetime - safety buffer
-           "expiry": time.time() + expiry - 300
+           "expiry": time.time() + expiry
         }
         with open(self.token_cache_file, 'w') as f:
             json.dump(data, f)
