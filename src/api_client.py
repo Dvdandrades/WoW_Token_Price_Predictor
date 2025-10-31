@@ -76,7 +76,7 @@ class BlizzardAPIClient:
         self.token_cache_file.parent.mkdir(parents=True, exist_ok=True)
         data = {
            "access_token": token,
-           # Calculate absolute expiry time: current time + token lifetime - safety buffer
+           # Calculate absolute expiry time: current time + token lifetime
            "expiry": time.time() + expiry
         }
         with open(self.token_cache_file, 'w') as f:
