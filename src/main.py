@@ -14,6 +14,9 @@ except ValueError as e:
     print(f"ERROR: API Client initialization failed: {e}")
     api_client = None
 
+# Ensure the database is initialized (creates tables if they don't exist).
+initialize_db()
+    
 def main():
     # Start of the WoW Token price tracking task.
     print(f"\n--- WoW Token Tracker: Starting Data Fetch Task ---")
@@ -24,9 +27,6 @@ def main():
         return
 
     try:
-        # Ensure the database is initialized (creates tables if they don't exist).
-        initialize_db()
-
         # Fetch the current WoW Token price data from the Blizzard API.
         data = api_client.fetch_wow_token_price()
 
