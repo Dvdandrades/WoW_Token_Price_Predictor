@@ -1,4 +1,3 @@
-import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
@@ -51,12 +50,11 @@ def save_price(price_cooper):
         
         # Convert the price from cooper to gold (10,000 cooper = 1 gold)
         gold = price_cooper // 10000
-        
-        # Create a DataFrame for easy insertion into the database
-        df = pd.DataFrame([{"datetime": now_utc, "price_gold": gold}])
-        
+
         # Insert the data into the 'token_prices' table
-        df.to_sql("token_prices", conn, if_exists="append", index=False)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO token_prices (datetime, price_gold) VALUES (?, ?)", (now_utc, gold))
+        conn.commit()
         
         print(f"[{now_utc} UTC] WoW Token price successfully saved to SQLite: {gold} gold.")
 
