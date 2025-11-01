@@ -5,6 +5,7 @@ from pathlib import Path
 from flask_caching import Cache
 import sqlite3
 import os
+import plotly.express as px
 from data_manager import DB_PATH
 
 # Path Configuration
@@ -97,6 +98,11 @@ app.layout = html.Div(
                     ),
                     className="header-description",
                 ),
+                html.P(
+                    id="last-updated-time",
+                    className="header-description",
+                    style={"fontStyle": "italic", "marginTop": "5px", "fontSize": "0.9em"},
+                ),
             ],
             className="header",
         ),
@@ -132,7 +138,7 @@ app.layout = html.Div(
                 ),
                 # Interval component triggers periodic data refresh (every 20 minutes)
                 # This causes the callback to fire, which checks for new data via cache invalidation.
-                dcc.Interval(id="interval-check", interval=20 * 60 * 1000, n_intervals=0),
+                dcc.Interval(id="interval-check", interval=5 * 60 * 1000, n_intervals=0),
             ],
             className="wrapper",
         ),
@@ -146,6 +152,7 @@ app.layout = html.Div(
     Output("date-range", "max_date_allowed"),
     Output("date-range", "start_date"),
     Output("date-range", "end_date"),
+    Output("last-updated-time", "children"),
     Input("date-range", "start_date"),
     Input("date-range", "end_date"),
     Input("interval-check", "n_intervals"), # Dependency to trigger refresh
@@ -178,13 +185,21 @@ def update_graph(start_date, end_date, n_intervals):
     # Load the cached or fresh data based on mtime
     df = load_data(mtime)
 
+    # Placeholder for last update
+    last_updated_text = "Last updated: N/A"
+
     # Handle case: no data available
     if df.empty:
         # Return a placeholder figure and reset all date picker properties
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
-            None, None, None, None
+            None, None, None, None,
+            last_updated_text
         )
+    
+    # Calculate the latest data time
+    last_updated_time_str = df["datetime"].max().strftime("%Y-%m-%d %H:%M:%S")
+    last_updated_text = f"Last updated: {last_updated_time_str}"
 
     # Establish the date range boundaries based on loaded data
     min_date = df["datetime"].min().date().isoformat()
@@ -211,28 +226,30 @@ def update_graph(start_date, end_date, n_intervals):
         )
 
     # Construct Plotly figure definition
-    line_figure = {
-        "data": [
-            {
-                "x": date_filtered["datetime"],
-                "y": date_filtered["price_gold"],
-                "type": "scatter",
-                "mode": "lines+markers",
-                "hovertemplate": (
-                    "Date: %{x|%Y-%m-%d %H:%M:%S}<br>"
-                    "Price: %{y} Gold<extra></extra>"
-                ),
-            },
-        ],
-        "layout": {
-            # Title for the visualization
-            "title": {"text": "WoW Token Price Over Time", "x": 0.05, "xanchor": "left"},
-            # Axis labels and range properties
-            "xaxis": {"title": "Date", "fixedrange": True},
-            "yaxis": {"title": "Price in Gold", "fixedrange": True},
-            "colorway": ["#17B897"], # Teal color for the line
-        },
-    }
+    line_figure = px.line(
+        date_filtered,
+        x="datetime",
+        y="price_gold",
+        title="WoW Token Price Over Time",
+    )
+
+    line_figure.update_traces(
+        mode="lines+markers",
+        line_color="#17B897",
+        hovertemplate=(
+            "Date: %{x|%Y-%m-%d %H:%M:%S}<br>"
+            "Price: %{y} Oro<extra></extra>"
+        ),
+    )
+
+    line_figure.update_layout(
+        title_x=0.05,
+        title_xanchor="left",
+        xaxis_title="Date",
+        yaxis_title="Price (Godl)",
+        xaxis_fixedrange=True,
+        yaxis_fixedrange=True,
+    )
 
     # Return the figure and the updated date picker properties
-    return line_figure, min_date, max_date, new_start_date, new_end_date
+    return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text

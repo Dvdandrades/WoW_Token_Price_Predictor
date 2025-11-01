@@ -1,25 +1,6 @@
 import requests
-import os
 import time
 import json
-from dotenv import load_dotenv
-from pathlib import Path
-
-# Initialization and Configuration Setup
-# Define the project root directory relative to this file's location.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-# Load environment variables (CLIENT_ID, CLIENT_SECRET) from the .env file located at the project's root.
-load_dotenv(PROJECT_ROOT / ".env")
-
-# Retrieve Blizzard API credentials and configuration from environment variables.
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-# Get the region; defaults to 'eu' if the environment variable is not set.
-REGION = os.getenv("REGION", "eu")  
-# Set the locale for API responses.
-LOCALE = "en_US"
-# Define the path for the file used to cache the access token.
-TOKEN_CACHE_FILE = PROJECT_ROOT / "data" / "token_cache.json"
 
 # Blizzard API Client Class
 class BlizzardAPIClient:
