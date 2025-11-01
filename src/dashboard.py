@@ -222,7 +222,8 @@ def update_graph(start_date, end_date, n_intervals):
         # Return a placeholder figure but keep the date boundaries and selections intact
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
-            min_date, max_date, new_start_date, new_end_date
+            min_date, max_date, new_start_date, new_end_date,
+            last_updated_text
         )
 
     # Construct Plotly figure definition
