@@ -106,6 +106,27 @@ app.layout = html.Div(
             ],
             className="header",
         ),
+        # Statistics Card Container
+        html.Div(
+            children=[
+                html.Div(
+                    children=[
+                        html.H3(children="Current Price", className="card-title"),
+                        html.P(
+                            id="current-price-value",
+                            children="N/A",
+                            className="card-value",
+                        ),
+                        html.P(
+                            children="gold",
+                            className="card-unit",
+                        ),
+                    ],
+                    className="stat-card",
+                ),
+            ],
+            className="stats-container",
+        ),
 
         # Menu Section: Contains interactive filters
         html.Div(
@@ -153,6 +174,7 @@ app.layout = html.Div(
     Output("date-range", "start_date"),
     Output("date-range", "end_date"),
     Output("last-updated-time", "children"),
+    Output("current-price-value", "children"),
     Input("date-range", "start_date"),
     Input("date-range", "end_date"),
     Input("interval-check", "n_intervals"), # Dependency to trigger refresh
@@ -185,8 +207,9 @@ def update_graph(start_date, end_date, n_intervals):
     # Load the cached or fresh data based on mtime
     df = load_data(mtime)
 
-    # Placeholder for last update
+    # Placeholder values for no-data state
     last_updated_text = "Last updated: N/A"
+    current_price_display = "N/A"
 
     # Handle case: no data available
     if df.empty:
@@ -194,12 +217,16 @@ def update_graph(start_date, end_date, n_intervals):
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
             None, None, None, None,
-            last_updated_text
+            last_updated_text,
+            current_price_display
         )
     
     # Calculate the latest data time
     last_updated_time_str = df["datetime"].max().strftime("%Y-%m-%d %H:%M:%S")
     last_updated_text = f"Last updated: {last_updated_time_str}"
+
+    # Get the most recent price for display
+    current_price_display = f"{df["price_gold"].iloc[-1]:,}"
 
     # Establish the date range boundaries based on loaded data
     min_date = df["datetime"].min().date().isoformat()
@@ -223,7 +250,8 @@ def update_graph(start_date, end_date, n_intervals):
         return (
             {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
             min_date, max_date, new_start_date, new_end_date,
-            last_updated_text
+            last_updated_text,
+            current_price_display
         )
 
     # Construct Plotly figure definition
@@ -253,4 +281,4 @@ def update_graph(start_date, end_date, n_intervals):
     )
 
     # Return the figure and the updated date picker properties
-    return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text
+    return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text, current_price_display
