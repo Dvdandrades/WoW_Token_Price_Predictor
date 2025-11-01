@@ -168,6 +168,7 @@ app.layout = html.Div(
 
 # Callback: Update Graph and Date Picker Limits
 @app.callback(
+    (
     Output("token-line-plot", "figure"),
     Output("date-range", "min_date_allowed"),
     Output("date-range", "max_date_allowed"),
@@ -175,9 +176,10 @@ app.layout = html.Div(
     Output("date-range", "end_date"),
     Output("last-updated-time", "children"),
     Output("current-price-value", "children"),
+    ),
     Input("date-range", "start_date"),
     Input("date-range", "end_date"),
-    Input("interval-check", "n_intervals"), # Dependency to trigger refresh
+    Input("interval-check", "n_intervals"),
 )
 def update_graph(start_date, end_date, n_intervals):
     """
