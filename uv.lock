@@ -264,11 +264,11 @@ wheels = [
 
 [[package]]
 name = "narwhals"
-version = "2.9.0"
+version = "2.10.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b7/95/aa46616f5e567ff5d262f4c207d5ca79cb2766010c786c351b8e7f930ef4/narwhals-2.9.0.tar.gz", hash = "sha256:d8cde40a6a8a7049d8e66608b7115ab19464acc6f305d136a8dc8ba396c4acfe", size = 584098, upload-time = "2025-10-20T12:19:16.893Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/c4/71f10e273c7192ace91b22766e1955f99be14980079147b492f5f9b5cbd5/narwhals-2.10.1.tar.gz", hash = "sha256:d6e3a9b1c0904a82984dec58a3d12b3bc08e9d61bbee639e7bb05349e663d036", size = 584727, upload-time = "2025-10-31T17:09:30.745Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/34/00c7ae8194074ed82b64e0bb7c24220eac5f77ac90c16e23cf0d2cfd2a03/narwhals-2.9.0-py3-none-any.whl", hash = "sha256:c59f7de4763004ae81691ce16df71b4e55aead0ead7ccde8c8f2ef8c9559c765", size = 422255, upload-time = "2025-10-20T12:19:15.228Z" },
+    { url = "https://files.pythonhosted.org/packages/62/cd/9481a199a086ac9f91eaa232b56cff90ca7fdc2cb6658de93825b1007094/narwhals-2.10.1-py3-none-any.whl", hash = "sha256:eed3d9ec8f821963456fef306c1ad11017995982169fca1f38f71c97d6a97b9b", size = 419490, upload-time = "2025-10-31T17:09:28.898Z" },
 ]
 
 [[package]]
@@ -426,11 +426,11 @@ wheels = [
 
 [[package]]
 name = "python-dotenv"
-version = "1.1.1"
+version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f6/b0/4bc07ccd3572a2f9df7e6782f52b0c6c90dcbb803ac4a167702d7d0dfe1e/python_dotenv-1.1.1.tar.gz", hash = "sha256:a8a6399716257f45be6a007360200409fce5cda2661e3dec71d23dc15f6189ab", size = 41978, upload-time = "2025-06-24T04:21:07.341Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5f/ed/539768cf28c661b5b068d66d96a2f155c4971a5d55684a514c1a0e0dec2f/python_dotenv-1.1.1-py3-none-any.whl", hash = "sha256:31f23644fe2602f88ff55e1f5c79ba497e01224ee7737937930c448e4d0e24dc", size = 20556, upload-time = "2025-06-24T04:21:06.073Z" },
+    { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
 ]
 
 [[package]]
