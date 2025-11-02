@@ -18,6 +18,7 @@ def register_callbacks(app, cache):
         Output("date-range", "end_date"),
         Output("last-updated-time", "children"),
         Output("current-price-value", "children"),
+        Output("average-price-value", "children"),
         ),
         Input("date-range", "start_date"),
         Input("date-range", "end_date"),
@@ -32,6 +33,7 @@ def register_callbacks(app, cache):
 
         last_updated_text = "Last updated: N/A"
         current_price_display = "N/A"
+        average_price_display = "N/A"
 
         # No Data Available Check
         if df.empty:
@@ -39,7 +41,8 @@ def register_callbacks(app, cache):
                 {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
                 None, None, None, None,
                 last_updated_text,
-                current_price_display
+                current_price_display,
+                average_price_display
             )
         
         # Calculate Metadata for Display
@@ -64,17 +67,22 @@ def register_callbacks(app, cache):
         # Filter Data
         date_filtered = df[(df["datetime"] >= start_dt) & (df["datetime"] < end_dt)]
 
+        # Calculate Average Price for Display
+        avg_price = date_filtered["price_gold"].mean()
+        average_price_display = f"{round(avg_price):,}"
+
         # No Data in Range Check
         if date_filtered.empty:
             return (
                 {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
                 min_date, max_date, new_start_date, new_end_date,
                 last_updated_text,
-                current_price_display
+                current_price_display,
+                average_price_display
             )
 
         # Generate Plot and Return
         line_figure = create_token_line_plot(date_filtered)
 
         # Return the figure and the updated date picker/stat card properties.
-        return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text, current_price_display
+        return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text, current_price_display, average_price_display
