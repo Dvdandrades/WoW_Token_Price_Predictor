@@ -1,6 +1,6 @@
 from api_client import BlizzardAPIClient
 from data_manager import save_price, initialize_db
-from dashboard import app
+from app import app
 from dotenv import load_dotenv
 from pathlib import Path
 

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import sqlite3
 
-# Define the project root directory. Assuming the script is in a subdirectory (e.g., 'src').
+# Define the project root directory.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Define the full path for the SQLite database file where WoW Token price data will be stored.
