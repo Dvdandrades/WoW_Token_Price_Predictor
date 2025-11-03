@@ -19,6 +19,8 @@ def register_callbacks(app, cache):
         Output("last-updated-time", "children"),
         Output("current-price-value", "children"),
         Output("average-price-value", "children"),
+        Output("highest-price-value", "children"),
+        Output("lowest-price-value", "children"),
         ),
         Input("date-range", "start_date"),
         Input("date-range", "end_date"),
@@ -34,15 +36,20 @@ def register_callbacks(app, cache):
         last_updated_text = "Last updated: N/A"
         current_price_display = "N/A"
         average_price_display = "N/A"
+        highest_price_display = "N/A"
+        lowest_price_display = "N/A"
 
         # No Data Available Check
         if df.empty:
+            default_figure = {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}}
             return (
-                {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}},
+                default_figure,
                 None, None, None, None,
                 last_updated_text,
                 current_price_display,
-                average_price_display
+                average_price_display,
+                highest_price_display,
+                lowest_price_display
             )
         
         # Calculate Metadata for Display
@@ -68,21 +75,39 @@ def register_callbacks(app, cache):
         date_filtered = df[(df["datetime"] >= start_dt) & (df["datetime"] < end_dt)]
 
         # Calculate Average Price for Display
-        avg_price = date_filtered["price_gold"].mean()
-        average_price_display = f"{round(avg_price):,}"
+        if not date_filtered.empty:
+            avg_price = date_filtered["price_gold"].mean()
+            average_price_display = f"{round(avg_price):,}"
+
+            highest_price = date_filtered["price_gold"].max()
+            lowest_price = date_filtered["price_gold"].min()
+
+            highest_price_display = f"{highest_price:,}"
+            lowest_price_display = f"{lowest_price:,}"
 
         # No Data in Range Check
         if date_filtered.empty:
+            default_figure = {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}}
             return (
-                {"data": [], "layout": {"title": {"text": "No Data Available for Selected Range", "x": 0.5}}},
+                default_figure,
                 min_date, max_date, new_start_date, new_end_date,
                 last_updated_text,
                 current_price_display,
-                average_price_display
+                average_price_display,
+                highest_price_display,
+                lowest_price_display
             )
 
         # Generate Plot and Return
         line_figure = create_token_line_plot(date_filtered)
 
         # Return the figure and the updated date picker/stat card properties.
-        return line_figure, min_date, max_date, new_start_date, new_end_date, last_updated_text, current_price_display, average_price_display
+        return (
+            line_figure, 
+            min_date, max_date, new_start_date, new_end_date, 
+            last_updated_text, 
+            current_price_display, 
+            average_price_display, 
+            highest_price_display, 
+            lowest_price_display
+            )

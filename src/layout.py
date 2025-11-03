@@ -56,7 +56,37 @@ def create_layout():
                             ),
                         ],
                         className="stat-card",
-                    )
+                    ),
+                    html.Div(
+                        children=[
+                            html.H3(children=("Highest Price"), className="card-title"),
+                            html.P(
+                                id="highest-price-value",
+                                children="N/A",
+                                className="card-value",
+                            ),
+                            html.P(
+                                children="gold",
+                                className="card-unit",
+                            ),
+                        ],
+                        className="stat-card",
+                    ),
+                    html.Div(
+                        children=[
+                            html.H3(children=("Lowest Price"), className="card-title"),
+                            html.P(
+                                id="lowest-price-value",
+                                children="N/A",
+                                className="card-value",
+                            ),
+                            html.P(
+                                children="gold",
+                                className="card-unit",
+                            ),
+                        ],
+                        className="stat-card",
+                    ),
                 ],
                 className="stats-container",
             ),
