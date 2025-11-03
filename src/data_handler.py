@@ -48,7 +48,7 @@ def load_data(mtime, cache):
 
             # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects
             # and 'price_gold' to integer type.
-            df["datetime"] = pd.to_datetime(df["datetime"]).dt.tz_localize(None)
+            df["datetime"] = pd.to_datetime(df["datetime"])
             df["price_gold"] = df["price_gold"].astype(int)
             return df
         except sqlite3.Error as e:

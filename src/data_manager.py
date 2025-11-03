@@ -19,18 +19,17 @@ def initialize_db():
     if it does not already exist.
     The table stores the timestamp and the WoW Token price in gold.
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS token_prices (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            datetime TEXT NOT NULL,
-            price_gold INTEGER NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS token_prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                datetime TEXT NOT NULL,
+                price_gold INTEGER NOT NULL
+            )
+        """)
+        conn.commit()
 
 def save_price(price_cooper):
     """
@@ -42,26 +41,24 @@ def save_price(price_cooper):
     Args:
         price_cooper (int): The WoW Token price in cooper coins.
     """
-    conn = sqlite3.connect(DB_PATH)
 
     try:
-        # Get the current time in UTC and format it for database storage
-        now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Convert the price from cooper to gold (10,000 cooper = 1 gold)
-        gold = price_cooper // 10000
+        # Connect to the SQLite database
+        with sqlite3.connect(DB_PATH) as conn:
 
-        # Insert the data into the 'token_prices' table
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO token_prices (datetime, price_gold) VALUES (?, ?)", (now_utc, gold))
-        conn.commit()
-        
-        print(f"[{now_utc} UTC] WoW Token price successfully saved to SQLite: {gold} gold.")
+            # Get the current time in UTC and format it for database storage
+            now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Convert the price from cooper to gold (10,000 cooper = 1 gold)
+            gold = price_cooper // 10000
+
+            # Insert the data into the 'token_prices' table
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO token_prices (datetime, price_gold) VALUES (?, ?)", (now_utc, gold))
+            conn.commit()
+            
+            print(f"[{now_utc} UTC] WoW Token price successfully saved to SQLite: {gold} gold.")
 
     except Exception as e:
         # Detailed error message for any failure during the save operation
         print(f"**ERROR:** Failed to save price data to the database. Details: {e}")
-
-    finally:
-        # Ensure the database connection is always closed
-        conn.close()

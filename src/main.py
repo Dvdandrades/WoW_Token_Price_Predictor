@@ -48,10 +48,7 @@ def main():
 
     try:
         # Fetch the current WoW Token price data from the Blizzard API.
-        data = api_client.fetch_wow_token_price()
-
-        # Extract the price value from the response data.
-        price = data["price"]
+        price = api_client.fetch_wow_token_price()
 
         # Save the fetched price to the database.
         save_price(price)
@@ -59,13 +56,9 @@ def main():
     except requests.exceptions.RequestException as e:
         # Error during the API request.
         print(f"ERROR: API request failed (Network/HTTP error): {e}")
-    except KeyError as e:
-        # Error if the expected 'price' key is missing from the API response.
-        print(f"ERROR: Failed to parse API response. Missing expected key: {e}")
     except Exception as e:
         # Catch any other unexpected errors during the tracking process.
         print(f"An unexpected error occurred during the tracking process: {e}")
-
 
 def run_schedule():
     # Schedule the 'main' function to run at a regular interval.

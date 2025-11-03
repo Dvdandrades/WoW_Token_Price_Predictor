@@ -138,9 +138,11 @@ class BlizzardAPIClient:
         
         token_data = response.json()
 
+        price = token_data.get("price")
+
         # Simple validation to ensure the expected data is present.
-        if "price" not in token_data:
+        if price is None:
             raise KeyError(f"API response missing 'price' key. Response data: {token_data}")
         
         # Returns the full JSON response containing the 'price' (in copper).
-        return token_data
+        return price
