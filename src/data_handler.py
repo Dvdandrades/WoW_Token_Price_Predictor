@@ -1,9 +1,8 @@
-# data_handler.py
 import pandas as pd
 import time
 import sqlite3
 import os
-from data_manager import DB_PATH
+from config import DB_PATH
 
 def get_db_mtime():
     """Returns the modification time of the SQLite database file, or current time if it doesn't exist."""
@@ -30,7 +29,7 @@ def load_data(mtime, cache):
     pandas.DataFrame
         A sorted DataFrame containing 'datetime' (tz-naive) and 'price_gold' columns.
     """
-    @cache.memoize(timeout=60 * 5)  # Cache data for 5 minutes
+    @cache.memoize(timeout=60 * 19)  # Cache data for 19 minutes
     def cached_load(mtime):
         # Check if the database file exists before attempting connection.
         if not DB_PATH.exists():
@@ -46,13 +45,15 @@ def load_data(mtime, cache):
             )
             conn.close()
 
-            # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects
-            # and 'price_gold' to integer type.
+            # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects,
+            # 'price_gold' to integer type
+            # and compute the 7-day Exponential Moving Average.
             df["datetime"] = pd.to_datetime(df["datetime"])
             df["price_gold"] = df["price_gold"].astype(int)
+            df["ema"] = df["price_gold"].ewm(span=7, adjust=False).mean().round().astype('Int64')
             return df
         except sqlite3.Error as e:
             print(f"SQLite Error during data loading: {e}")
-            return pd.DataFrame(columns=["datetime", "price_gold"])
+            return pd.DataFrame(columns=["datetime", "price_gold", "ema"])
     
     return cached_load(mtime)
