@@ -1,17 +1,9 @@
 from datetime import datetime, timezone
-from pathlib import Path
+from config import DB_PATH
 import sqlite3
-
-# Define the project root directory.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-# Define the full path for the SQLite database file where WoW Token price data will be stored.
-# The path is set to "<project_root>/data/wow_token_prices.db".
-DB_PATH = PROJECT_ROOT / "data" / "wow_token_prices.db"
 
 # Ensure the 'data' directory exists within the project root before attempting to create the database file.
 DB_PATH.parent.mkdir(exist_ok=True)
-
 
 def initialize_db():
     """
