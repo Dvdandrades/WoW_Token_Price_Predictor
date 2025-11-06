@@ -7,8 +7,7 @@ def create_layout():
             # Header Section (Title and Description)
             html.Div(
                 children=[
-                    html.P(children="🪙", className="header-emoji"),
-                    html.H1(children="WoW Token Price", className="header-title"),
+                    html.H1(children="Worlf Of Warcraft Token Price", className="header-title"),
                     html.P(
                         children=(
                             "An interactive dashboard for exploring "
@@ -27,6 +26,7 @@ def create_layout():
             # Statistics Card Container
             html.Div(
                 children=[
+                    # *** CHANGE MADE HERE: Used stat-card instead of card ***
                     html.Div(
                         children=[
                             html.H3(children="Current Price", className="card-title"),
@@ -41,8 +41,9 @@ def create_layout():
                                 className="card-indicator",
                             ),
                         ],
-                        className="card",
+                        className="stat-card",
                     ),
+                    # The rest of the stat-cards remain the same...
                     html.Div(
                         children=[
                             html.H3(children=("Average Price"), className="card-title"),
