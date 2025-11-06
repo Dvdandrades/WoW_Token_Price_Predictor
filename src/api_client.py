@@ -43,9 +43,12 @@ class BlizzardAPIClient:
                     if time.time() < data.get("expiry", 0):
                         self._access_token = data.get("access_token")
                         return self._access_token
+                    else:
+                        self.token_cache_file.unlink() # Remove expired cache file.
             # Handle case where the cache file exists but is corrupted/empty.
             except json.JSONDecodeError:
                 pass
+        self._access_token = None
         return None
 
 
@@ -71,9 +74,6 @@ class BlizzardAPIClient:
         Retrieves a valid access token, first checking memory, then cache,
         and finally requesting a new one from the Blizzard OAuth server if necessary.
         """
-        # Check in-memory token.
-        if self._access_token:
-            return self._access_token
         
         # Check cached token.
         cached_token = self._load_token_cache()

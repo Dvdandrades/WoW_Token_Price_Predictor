@@ -1,7 +1,8 @@
-from dash import Input, Output
+from dash import Input, Output, html
 import pandas as pd
 from data_handler import get_db_mtime, load_data
 from figures import create_token_line_plot
+from config import COLOR_INCREASE, COLOR_DECREASE
 
 
 def register_callbacks(app, cache):
@@ -21,6 +22,7 @@ def register_callbacks(app, cache):
         Output("average-price-value", "children"),
         Output("highest-price-value", "children"),
         Output("lowest-price-value", "children"),
+        Output("price_change_indicators", "children"),
         ),
         Input("date-range", "start_date"),
         Input("date-range", "end_date"),
@@ -38,6 +40,7 @@ def register_callbacks(app, cache):
         average_price_display = "N/A"
         highest_price_display = "N/A"
         lowest_price_display = "N/A"
+        price_change_indicators_display = html.Span("N/A", style={"color": "gray"})
 
         # No Data Available Check
         if df.empty:
@@ -49,7 +52,8 @@ def register_callbacks(app, cache):
                 current_price_display,
                 average_price_display,
                 highest_price_display,
-                lowest_price_display
+                lowest_price_display,
+                price_change_indicators_display
             )
         
         # Calculate Metadata for Display
@@ -57,6 +61,32 @@ def register_callbacks(app, cache):
         last_updated_time_str = df["datetime"].max().strftime("%Y-%m-%d %H:%M:%S")
         last_updated_text = f"Last updated: {last_updated_time_str}"
         current_price_display = f"{df["price_gold"].iloc[-1]:,}"
+        latest_abs_change = df.iloc[-1]["price_change_abs"]
+        latest_pct_change = df.iloc[-1]["price_change_pct"]
+
+        if not pd.isna(latest_abs_change):
+            # Determine color and sign for both indicators
+            is_positive = latest_abs_change >= 0
+            # Use colors defined in the figures.py for consistency: Green for increase, Red for decrease
+            color = COLOR_INCREASE if is_positive else COLOR_DECREASE 
+            sign = "+" if is_positive else ""
+
+            # Format Absolute Change Span (e.g., +1,234 Gold)
+            abs_change_span = html.Span(
+                f"{sign}{round(latest_abs_change):,} Gold",
+                style={"color": color, "fontWeight": "bold", "marginRight": "10px"}
+            )
+
+            # Format Percentage Change Span (e.g., (+0.50%))
+            pct_change_span = html.Span(
+                f"({sign}{latest_pct_change:.2f}%)",
+                style={"color": color, "fontStyle": "italic"}
+            )
+            
+            # Combine both into a single list of children for the output P element
+            price_change_indicators_display = [abs_change_span, pct_change_span]
+        else:
+            price_change_indicators_display = html.Span("Change: N/A (Requires two data points)", style={"color": "gray"})
 
         # Date Picker Range Configuration
         # Establish the date range boundaries based on the loaded data.
@@ -95,7 +125,8 @@ def register_callbacks(app, cache):
                 current_price_display,
                 average_price_display,
                 highest_price_display,
-                lowest_price_display
+                lowest_price_display,
+                price_change_indicators_display
             )
 
         # Generate Plot and Return
@@ -109,5 +140,6 @@ def register_callbacks(app, cache):
             current_price_display, 
             average_price_display, 
             highest_price_display, 
-            lowest_price_display
+            lowest_price_display,
+            price_change_indicators_display
             )

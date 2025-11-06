@@ -2,7 +2,7 @@ import pandas as pd
 import time
 import sqlite3
 import os
-from config import DB_PATH
+from config import DB_PATH, EMA_SPAN_DAYS, CACHE_TIMEOUT_MINUTES
 
 def get_db_mtime():
     """Returns the modification time of the SQLite database file, or current time if it doesn't exist."""
@@ -29,7 +29,7 @@ def load_data(mtime, cache):
     pandas.DataFrame
         A sorted DataFrame containing 'datetime' (tz-naive) and 'price_gold' columns.
     """
-    @cache.memoize(timeout=60 * 19)  # Cache data for 19 minutes
+    @cache.memoize(timeout=60 * CACHE_TIMEOUT_MINUTES)  # Cache data for 19 minutes
     def cached_load(mtime):
         # Check if the database file exists before attempting connection.
         if not DB_PATH.exists():
@@ -45,12 +45,16 @@ def load_data(mtime, cache):
             )
             conn.close()
 
-            # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects,
-            # 'price_gold' to integer type
-            # and compute the 7-day Exponential Moving Average.
+            # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects and 'price_gold' to integer type
             df["datetime"] = pd.to_datetime(df["datetime"])
             df["price_gold"] = df["price_gold"].astype(int)
-            df["ema"] = df["price_gold"].ewm(span=7, adjust=False).mean().round().astype('Int64')
+
+            # Calculate the absolute difference and the percentage change between consecutive prices.
+            df["price_change_abs"] = df["price_gold"].diff()
+            df["price_change_pct"] = df["price_gold"].pct_change() * 100
+
+            # Compute the 7-day Exponential Moving Average.
+            df["ema"] = df["price_gold"].ewm(span=EMA_SPAN_DAYS, adjust=False).mean().round().astype('Int64')
             return df
         except sqlite3.Error as e:
             print(f"SQLite Error during data loading: {e}")

@@ -12,4 +12,12 @@ REGION = os.getenv("REGION", "eu")
 LOCALE = "en_US"
 
 TOKEN_CACHE_FILE = PROJECT_ROOT / "data" / "token_cache.json"
-DB_PATH = PROJECT_ROOT / "data" / "wow_token_prices.db" # Importar esto en data_manager
+DB_PATH = PROJECT_ROOT / "data" / "wow_token_prices.db"
+
+COOPER_PER_GOLD = 10000
+
+CACHE_TIMEOUT_MINUTES = 19
+EMA_SPAN_DAYS = 7
+
+COLOR_INCREASE = "#17B897"
+COLOR_DECREASE = "#FF6347"

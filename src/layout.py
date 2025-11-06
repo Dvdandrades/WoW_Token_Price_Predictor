@@ -36,11 +36,12 @@ def create_layout():
                                 className="card-value",
                             ),
                             html.P(
-                                children="gold",
-                                className="card-unit",
+                                id="price_change_indicators",
+                                children="N/A",
+                                className="card-indicator",
                             ),
                         ],
-                        className="stat-card",
+                        className="card",
                     ),
                     html.Div(
                         children=[
