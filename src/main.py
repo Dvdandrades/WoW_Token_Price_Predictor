@@ -1,7 +1,7 @@
 from api_client import BlizzardAPIClient
 from data_manager import save_price, initialize_db
 from app import app
-from config import CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE
+from config import CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE
 
 import time
 import schedule
@@ -10,7 +10,7 @@ import requests
 
 try:
     # Initialize the Blizzard API Client with credentials and regional settings.
-    api_client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, REGION, LOCALE, TOKEN_CACHE_FILE)
+    api_client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE)
 except ValueError as e:
     # Error when initializing the client.
     print(f"ERROR: API Client initialization failed: {e}")

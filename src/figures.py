@@ -20,7 +20,7 @@ def create_token_line_plot(df: pd.DataFrame):
         go.Scatter(
             x=df["datetime"],
             y=df["price_gold"],
-            mode="lines+markers",
+            mode="lines",
             line=dict(color="#17B897", width=2, dash="solid"),
             name="Actual Price",
             hovertemplate=(

@@ -1,4 +1,5 @@
 from dash import dcc, html
+from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, REGION_OPTIONS, DEFAULT_REGION
 
 def create_layout():
     """Defines the overall layout of the Dash application."""
@@ -7,7 +8,7 @@ def create_layout():
             # Header Section (Title and Description)
             html.Div(
                 children=[
-                    html.H1(children="Worlf Of Warcraft Token Price", className="header-title"),
+                    html.H1(children="World Of Warcraft Token Price", className="header-title"),
                     html.P(
                         children=(
                             "An interactive dashboard for exploring "
@@ -26,7 +27,6 @@ def create_layout():
             # Statistics Card Container
             html.Div(
                 children=[
-                    # *** CHANGE MADE HERE: Used stat-card instead of card ***
                     html.Div(
                         children=[
                             html.H3(children="Current Price", className="card-title"),
@@ -43,7 +43,6 @@ def create_layout():
                         ],
                         className="stat-card",
                     ),
-                    # The rest of the stat-cards remain the same...
                     html.Div(
                         children=[
                             html.H3(children=("Average Price"), className="card-title"),
@@ -93,7 +92,7 @@ def create_layout():
                 className="stats-container",
             ),
 
-            # Menu Section (Date Range Picker)
+            # Menu Section (Date Range Picker and Dropdowns)
             html.Div(
                 children=[
                     html.Div(
@@ -105,7 +104,31 @@ def create_layout():
                                 min_date_allowed=None,
                                 max_date_allowed=None,
                             ),
-                        ]
+                        ],
+                    ),
+                    html.Div(
+                        children=[
+                            html.Div(children="Filter by Days", className="menu-title"),
+                            dcc.Dropdown(
+                                id="days-filter-dropdown",
+                                options=DAYS_OPTIONS,
+                                value=DEFAULT_DAYS_FILTER,
+                                clearable=False,
+                                className="dash-dropdown",
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        children=[
+                            html.Div(children="Region Selection", className="menu-title"),
+                            dcc.Dropdown(
+                                id="region-selector-drowdown",
+                                options=REGION_OPTIONS,
+                                value=DEFAULT_REGION,
+                                clearable=False,
+                                className="dash-dropdown",
+                            ),
+                        ],
                     ),
                 ],
                 className="menu",
