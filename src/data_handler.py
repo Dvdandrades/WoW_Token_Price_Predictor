@@ -6,9 +6,47 @@ from config import DB_PATH, EMA_SPAN_DAYS, CACHE_TIMEOUT_MINUTES
 
 def get_db_mtime():
     """Returns the modification time of the SQLite database file, or current time if it doesn't exist."""
+    # Check if the database file exists
     if DB_PATH.exists():
+        # Return the time of the last modification
         return os.path.getmtime(DB_PATH)
+    # If the database file is not found, return the current time (used to force cache update if DB appears)
     return time.time()
+
+def _preprocess_data(df):
+    """
+    Applies data type conversions, calculates price changes (absolute and percentage),
+    and computes the Exponential Moving Average (EMA).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The raw DataFrame loaded from the database.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The processed DataFrame with additional calculated columns.
+    """
+    if df.empty:
+        return df
+    
+    # Convert the 'datetime' column to proper datetime objects (tz-naive)
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    # Convert 'price_gold' to integer type
+    df["price_gold"] = df["price_gold"].astype(int)
+
+    # Calculate the absolute difference in price between consecutive rows
+    df["price_change_abs"] = df["price_gold"].diff()
+    # Calculate the percentage change in price between consecutive rows, multiplied by 100
+    df["price_change_pct"] = df["price_gold"].pct_change() * 100
+
+    # Calculate the Exponential Moving Average (EMA) of 'price_gold'
+    # 'span' is defined by EMA_SPAN_DAYS, 'adjust=False' uses the legacy weighting formula
+    # The result is rounded and converted to an Int64 (integer with support for NaN)
+    df["ema"] = df["price_gold"].ewm(span=EMA_SPAN_DAYS, adjust=False).mean().round().astype('Int64')
+
+    return df
 
 
 def load_data(mtime, cache):
@@ -27,8 +65,10 @@ def load_data(mtime, cache):
     Returns
     -------
     pandas.DataFrame
-        A sorted DataFrame containing 'datetime' (tz-naive) and 'price_gold' columns.
+        A sorted DataFrame containing 'datetime' (tz-naive) and 'price_gold' columns, plus derived metrics.
     """
+    # Decorator to cache the result of the function call based on its arguments.
+    # The 'mtime' parameter acts as a cache key: if it changes (DB updated), the cache is invalidated.
     @cache.memoize(timeout=60 * CACHE_TIMEOUT_MINUTES)  # Cache data for 19 minutes
     def cached_load(mtime):
         # Check if the database file exists before attempting connection.
@@ -37,27 +77,24 @@ def load_data(mtime, cache):
             return pd.DataFrame(columns=["datetime", "price_gold"])
 
         try:
-            # Connect to the SQLite database and read all data into a DataFrame.
+            # Connect to the SQLite database
             conn = sqlite3.connect(DB_PATH)
+            # Read all 'datetime' and 'price_gold' data, ordered by datetime, into a DataFrame
             df = pd.read_sql_query(
                 "SELECT datetime, price_gold FROM token_prices ORDER BY datetime",
                 conn
             )
+            # Close the database connection
             conn.close()
 
-            # Data Preprocessing: Convert 'datetime' to timezone-naive datetime objects and 'price_gold' to integer type
-            df["datetime"] = pd.to_datetime(df["datetime"])
-            df["price_gold"] = df["price_gold"].astype(int)
-
-            # Calculate the absolute difference and the percentage change between consecutive prices.
-            df["price_change_abs"] = df["price_gold"].diff()
-            df["price_change_pct"] = df["price_gold"].pct_change() * 100
-
-            # Compute the 7-day Exponential Moving Average.
-            df["ema"] = df["price_gold"].ewm(span=EMA_SPAN_DAYS, adjust=False).mean().round().astype('Int64')
-            return df
+            # Apply preprocessing steps to the loaded data
+            return _preprocess_data(df)
+        
         except sqlite3.Error as e:
+            # Handle potential SQLite errors during connection or query execution
             print(f"SQLite Error during data loading: {e}")
+            # Return an empty DataFrame with the expected columns in case of error
             return pd.DataFrame(columns=["datetime", "price_gold", "ema"])
     
+    # Call the decorated function with the modification time to trigger caching
     return cached_load(mtime)
