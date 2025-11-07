@@ -56,14 +56,18 @@ def create_token_line_plot(df: pd.DataFrame):
         yaxis_title="Price (Gold)",
         xaxis_fixedrange=True,
         yaxis_fixedrange=True,
-        legend_title="Legend",
+        hovermode="x unified",
+        margin=dict(l=40, r=20, t=50, b=40), 
+        plot_bgcolor="#ffffff",
+        paper_bgcolor="#ffffff",
+        font={"color": "#4b5563"},
         legend=dict(
             orientation="h",
             yanchor="bottom",
             y=1.02,
             xanchor="right",
-            x=1,
-        ),
+            x=1
+        )
     )
 
     return line_figure
