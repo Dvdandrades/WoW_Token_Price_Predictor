@@ -100,9 +100,9 @@ def create_layout():
                             html.Div(children="Date Range Selection", className="menu-title"),
                             dcc.DatePickerRange(
                                 id="date-range",
-                                # min/max dates are set dynamically by the callback
-                                min_date_allowed=None,
-                                max_date_allowed=None,
+                                display_format="YYYY-MM-DD",
+                                clearable=False,
+                                className="dash-datepicker-container",
                             ),
                         ],
                     ),

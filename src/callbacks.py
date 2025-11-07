@@ -90,12 +90,20 @@ def register_callbacks(app, cache):
 
         # Date Picker Range Configuration
         # Establish the date range boundaries based on the loaded data.
-        min_date = df["datetime"].min().date().isoformat()
-        max_date = df["datetime"].max().date().isoformat()
+        min_date_available = df["datetime"].min().date().isoformat()
+        max_date_available = df["datetime"].max().date().isoformat()
+
+        max_date = df["datetime"].max()
+        default_start_date = max_date - pd.Timedelta(days=2)
+        min_date = df["datetime"].min()
+        if default_start_date < min_date:
+            default_start_date = min_date
+
+        default_start_date_str = default_start_date.date().isoformat()
 
         # Set default/current date range for the plot.
-        new_start_date = start_date or min_date
-        new_end_date = end_date or max_date
+        new_start_date = start_date if start_date is not None else default_start_date_str
+        new_end_date = end_date if end_date is not None else max_date_available
 
         # Convert selected dates for filtering. Add one day to end_dt for inclusive filtering.
         start_dt = pd.to_datetime(new_start_date)
@@ -120,7 +128,7 @@ def register_callbacks(app, cache):
             default_figure = {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}}
             return (
                 default_figure,
-                min_date, max_date, new_start_date, new_end_date,
+                min_date_available, max_date_available, new_start_date, new_end_date,
                 last_updated_text,
                 current_price_display,
                 average_price_display,
@@ -135,7 +143,7 @@ def register_callbacks(app, cache):
         # Return the figure and the updated date picker/stat card properties.
         return (
             line_figure, 
-            min_date, max_date, new_start_date, new_end_date, 
+            min_date_available, max_date_available, new_start_date, new_end_date, 
             last_updated_text, 
             current_price_display, 
             average_price_display, 
