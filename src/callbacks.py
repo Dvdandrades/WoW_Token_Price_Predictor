@@ -31,9 +31,14 @@ def _determine_date_range(df, start_date_input, end_date_input):
     return min_date_available, max_date_available, new_start_date, new_end_date
 
 def _filter_dataframe_by_days(df, days_filter):
+    """
+    Filters the DataFrame to include only rows within the last 'days_filter' days.
+    """
+    # If days_filter is 0, return the full DataFrame (no filtering)
     if days_filter == 0:
         return df
     
+    # Calculate the start time by subtracting 'days_filter' days from the latest datetime
     start_time = df["datetime"].max() - pd.Timedelta(days=days_filter)
 
     return df[df["datetime"] >= start_time]
@@ -152,9 +157,10 @@ def register_callbacks(app, cache):
         # Define the 3 inputs that trigger the callback
         Input("date-range", "start_date"),
         Input("date-range", "end_date"),
+        Input("days-filter-dropdown", "value"),
         Input("interval-check", "n_intervals"), # Triggered by the 5-minute interval component to refresh data
     )
-    def update_graph(start_date, end_date, n_intervals):
+    def update_graph(start_date, end_date, value, n_intervals):
         """
         Main callback function: loads data, filters by date, calculates stats,
         and updates the graph and all stat cards.
@@ -169,11 +175,19 @@ def register_callbacks(app, cache):
         if df.empty:
             return _get_empty_state_outputs(df, start_date, end_date)
         
+        # Filter Data Based on Dropdown
+        day_value = value if value is not None else 0
+        date_filtered_by_days = _filter_dataframe_by_days(df, day_value)
+        
         # Determine the actual date range to be used, including default handling
         min_date_available, max_date_available, new_start_date, new_end_date = _determine_date_range(df, start_date, end_date)
 
         # Filter the main DataFrame based on the determined dates
         date_filtered = _filter_dataframe_by_dates(df, new_start_date, new_end_date)
+
+        # If a days filter is applied, override the date filtering
+        if day_value > 0:
+            date_filtered = date_filtered_by_days
 
         # Calculate statistics for the displayed range
         average_price_display, highest_price_display, lowest_price_display = _calculate_range_stats(date_filtered)
@@ -211,7 +225,7 @@ def register_callbacks(app, cache):
         # Return the figure and the updated date picker/stat card properties.
         return (
             line_figure, 
-            min_date_available, max_date_available, new_start_date, new_end_date, 
+            min_date_available, max_date_available, new_start_date, new_end_date,
             last_updated_text, 
             current_price_display, 
             average_price_display, 
