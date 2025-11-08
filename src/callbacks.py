@@ -30,6 +30,14 @@ def _determine_date_range(df, start_date_input, end_date_input):
 
     return min_date_available, max_date_available, new_start_date, new_end_date
 
+def _filter_dataframe_by_days(df, days_filter):
+    if days_filter == 0:
+        return df
+    
+    start_time = df["datetime"].max() - pd.Timedelta(days=days_filter)
+
+    return df[df["datetime"] >= start_time]
+
 def _filter_dataframe_by_dates(df, start_date_str, end_date_str):
     """
     Filters the DataFrame to include only rows within the selected date range.
