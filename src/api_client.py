@@ -1,6 +1,7 @@
 import requests
 import time
 import json
+from pathlib import Path
 
 # Blizzard API Client Class
 class BlizzardAPIClient:
@@ -8,17 +9,17 @@ class BlizzardAPIClient:
     A client for the Blizzard API, handling OAuth2 client credentials flow
     for token generation, token caching, and making API requests.
     """
-    def __init__(self, client_id, client_secret, region, locale, token_cache_file):
+    def __init__(self, client_id: str, client_secret: str, region: str, locale: str, token_cache_file: Path):
         """
         Initializes the client with credentials and configuration.
         """
         if not client_id or not client_secret:
             raise ValueError("CLIENT_ID and CLIENT_SECRET must be set in environment variables.")
         
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.locale = locale
-        self.token_cache_file = token_cache_file
+        self.client_id: str = client_id
+        self.client_secret: str = client_secret
+        self.locale: str = locale
+        self.token_cache_file: Path = token_cache_file
 
         # Define the static OAuth token endpoint URL.
         self.oauth_url = "https://oauth.battle.net/token"
@@ -30,7 +31,7 @@ class BlizzardAPIClient:
         self._access_token = None
 
 
-    def _load_token_cache(self):
+    def _load_token_cache(self) -> str | None:
         """
         Attempts to load a valid access token from the local cache file.
         Returns the token string if valid, otherwise returns None.
@@ -52,7 +53,7 @@ class BlizzardAPIClient:
         return None
 
 
-    def _save_token_cache(self, token, expiry):
+    def _save_token_cache(self, token: str, expiry: int):
         """
         Saves the new access token and its calculated expiry time to the cache file.
         """
@@ -69,7 +70,7 @@ class BlizzardAPIClient:
         self._access_token = token
 
 
-    def get_access_token(self):
+    def get_access_token(self) -> str:
         """
         Retrieves a valid access token, first checking memory, then cache,
         and finally requesting a new one from the Blizzard OAuth server if necessary.
@@ -105,7 +106,7 @@ class BlizzardAPIClient:
         self._save_token_cache(token, expiry)
         return token
 
-    def fetch_wow_token_price(self):
+    def fetch_wow_token_price(self) -> int:
         """
         Fetches the current WoW Token price from the Blizzard Game Data API.
         The price is returned in copper (e.g., 25000000 for 250k gold).
