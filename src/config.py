@@ -26,7 +26,6 @@ DAYS_OPTIONS = [
     {"label": "3 Days", "value": 3},
     {"label": "7 Days", "value": 7},
     {"label": "14 Days", "value": 14},
-    {"label": "All", "value": 0}
 ]
 DEFAULT_DAYS_FILTER = 3
 
