@@ -1,7 +1,7 @@
 from dash import dcc, html
 from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, REGION_OPTIONS, DEFAULT_REGION
 
-def create_layout():
+def create_layout() -> html.Div:
     """Defines the overall layout of the Dash application."""
     return html.Div(
         children=[

@@ -24,7 +24,7 @@ def initialize_db():
         """)
         conn.commit()
 
-def save_price(price_cooper):
+def save_price(price_cooper: int):
     """
     Saves the WoW Token price to the SQLite database.
     
@@ -40,10 +40,10 @@ def save_price(price_cooper):
         with sqlite3.connect(DB_PATH) as conn:
 
             # Get the current time in UTC and format it for database storage
-            now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            now_utc: str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             
             # Convert the price from cooper to gold (10,000 cooper = 1 gold)
-            gold = price_cooper // COOPER_PER_GOLD
+            gold: int = price_cooper // COOPER_PER_GOLD
 
             # Insert the data into the 'token_prices' table
             cursor = conn.cursor()

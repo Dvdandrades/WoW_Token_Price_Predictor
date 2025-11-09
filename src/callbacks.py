@@ -4,7 +4,7 @@ from data_handler import get_db_mtime, load_data
 from figures import create_token_line_plot
 from config import COLOR_INCREASE, COLOR_DECREASE
 
-def _determine_date_range(df, start_date_input, end_date_input):
+def _determine_date_range(df: pd.DataFrame, start_date_input: str, end_date_input: str) -> tuple[str, str, str, str]:
     """
     Determines the available and selected date ranges for the date picker.
     It defaults the start date to 2 days prior to the max available date if no input is provided.
@@ -30,7 +30,7 @@ def _determine_date_range(df, start_date_input, end_date_input):
 
     return min_date_available, max_date_available, new_start_date, new_end_date
 
-def _filter_dataframe_by_days(df, days_filter):
+def _filter_dataframe_by_days(df: pd.DataFrame, days_filter: int) -> pd.DataFrame: 
     """
     Filters the DataFrame to include only rows within the last 'days_filter' days.
     """
@@ -43,7 +43,7 @@ def _filter_dataframe_by_days(df, days_filter):
 
     return df[df["datetime"] >= start_time]
 
-def _filter_dataframe_by_dates(df, start_date_str, end_date_str):
+def _filter_dataframe_by_dates(df: pd.DataFrame, start_date_str: str, end_date_str: str) -> pd.DataFrame:
     """
     Filters the DataFrame to include only rows within the selected date range.
     Adds one day to the end date to ensure the entire day is included (as the input is just the date part).
@@ -57,7 +57,7 @@ def _filter_dataframe_by_dates(df, start_date_str, end_date_str):
     date_filtered = df[(df["datetime"] >= start_date) & (df["datetime"] < end_date)]
     return date_filtered
 
-def _calculate_range_stats(df_filtered):
+def _calculate_range_stats(df_filtered: pd.DataFrame) -> tuple[str, str, str]:
     """
     Calculates and formats the average, highest, and lowest price within the filtered date range.
     """
@@ -76,7 +76,7 @@ def _calculate_range_stats(df_filtered):
 
     return average_price_display, highest_price_display, lowest_price_display
 
-def _get_empty_state_outputs(df, start_date, end_date):
+def _get_empty_state_outputs() -> tuple:
     """
     Returns default 'N/A' values and an 'No Data' figure when the data frame is empty.
     Used for initial load or if the database file is empty.
@@ -104,7 +104,7 @@ def _get_empty_state_outputs(df, start_date, end_date):
         price_change_indicators_display
     )
 
-def _format_price_change_indicators(latest_abs_change, latest_pct_change):
+def _format_price_change_indicators(latest_abs_change: float, latest_pct_change: float) -> list[html.Span] | html.Span:
     """
     Formats the absolute and percentage price change indicators as styled Dash HTML components.
     Uses defined colors (COLOR_INCREASE/DECREASE) for styling.

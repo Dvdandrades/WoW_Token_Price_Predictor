@@ -4,7 +4,7 @@ import sqlite3
 import os
 from config import DB_PATH, EMA_SPAN_DAYS, CACHE_TIMEOUT_MINUTES
 
-def get_db_mtime():
+def get_db_mtime() -> float:
     """Returns the modification time of the SQLite database file, or current time if it doesn't exist."""
     # Check if the database file exists
     if DB_PATH.exists():
@@ -13,7 +13,7 @@ def get_db_mtime():
     # If the database file is not found, return the current time (used to force cache update if DB appears)
     return time.time()
 
-def _preprocess_data(df):
+def _preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Applies data type conversions, calculates price changes (absolute and percentage),
     and computes the Exponential Moving Average (EMA).
@@ -49,7 +49,7 @@ def _preprocess_data(df):
     return df
 
 
-def load_data(mtime, cache):
+def load_data(mtime: float, cache) -> pd.DataFrame:
     """
     Load and preprocess the WoW token price data from the SQLite database, utilizing a cache.
 
