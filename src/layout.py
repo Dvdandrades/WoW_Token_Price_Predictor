@@ -97,17 +97,6 @@ def create_layout() -> html.Div:
                 children=[
                     html.Div(
                         children=[
-                            html.Div(children="Date Range Selection", className="menu-title"),
-                            dcc.DatePickerRange(
-                                id="date-range",
-                                display_format="YYYY-MM-DD",
-                                clearable=False,
-                                className="dash-datepicker-container",
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        children=[
                             html.Div(children="Filter by Days", className="menu-title"),
                             dcc.Dropdown(
                                 id="days-filter-dropdown",

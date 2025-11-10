@@ -4,32 +4,6 @@ from data_handler import get_db_mtime, load_data
 from figures import create_token_line_plot
 from config import COLOR_INCREASE, COLOR_DECREASE
 
-def _determine_date_range(df: pd.DataFrame, start_date_input: str, end_date_input: str) -> tuple[str, str, str, str]:
-    """
-    Determines the available and selected date ranges for the date picker.
-    It defaults the start date to 2 days prior to the max available date if no input is provided.
-    """
-    # Get the earliest and latest available dates in the dataset
-    min_date_available = df["datetime"].min().date().isoformat()
-    max_date_available = df["datetime"].max().date().isoformat()
-
-    max_date = df["datetime"].max()
-
-    # Calculate a default start date: 2 days before the latest data point
-    default_start_date = max_date - pd.Timedelta(days=2)
-
-    min_date = df["datetime"].min()
-    # Ensure the default start date is not earlier than the absolute minimum date
-    default_start_date = max(default_start_date, min_date)
-
-    default_start_date_str = default_start_date.date().isoformat()
-
-    # Use input dates if they exist, otherwise use the calculated defaults
-    new_start_date = start_date_input if start_date_input is not None else default_start_date_str
-    new_end_date = end_date_input if end_date_input is not None else max_date_available
-
-    return min_date_available, max_date_available, new_start_date, new_end_date
-
 def _filter_dataframe_by_days(df: pd.DataFrame, days_filter: int) -> pd.DataFrame: 
     """
     Filters the DataFrame to include only rows within the last 'days_filter' days.
@@ -42,20 +16,6 @@ def _filter_dataframe_by_days(df: pd.DataFrame, days_filter: int) -> pd.DataFram
     start_time = df["datetime"].max() - pd.Timedelta(days=days_filter)
 
     return df[df["datetime"] >= start_time]
-
-def _filter_dataframe_by_dates(df: pd.DataFrame, start_date_str: str, end_date_str: str) -> pd.DataFrame:
-    """
-    Filters the DataFrame to include only rows within the selected date range.
-    Adds one day to the end date to ensure the entire day is included (as the input is just the date part).
-    """
-    # Convert string dates to pandas datetime objects
-    start_date = pd.to_datetime(start_date_str)
-    # Add one day to the end date to make the range inclusive up to the end of that day
-    end_date = pd.to_datetime(end_date_str) + pd.Timedelta(days=1)
-
-    # Filter the DataFrame
-    date_filtered = df[(df["datetime"] >= start_date) & (df["datetime"] < end_date)]
-    return date_filtered
 
 def _calculate_range_stats(df_filtered: pd.DataFrame) -> tuple[str, str, str]:
     """
@@ -95,7 +55,6 @@ def _get_empty_state_outputs() -> tuple:
     # Returns all required output elements in the correct order for the main callback
     return (
         default_figure,
-        None, None, None, None, # No date range updates on empty state
         last_updated_text,
         current_price_display,
         average_price_display,
@@ -140,13 +99,10 @@ def register_callbacks(app, cache):
     Registers all application callbacks with the Dash app instance.
     The cache object is required for the data loading function.
     """
+
     @app.callback(
         # Define the 11 outputs for the main graph and stat cards
         Output("token-line-plot", "figure"),
-        Output("date-range", "min_date_allowed"),
-        Output("date-range", "max_date_allowed"),
-        Output("date-range", "start_date"),
-        Output("date-range", "end_date"),
         Output("last-updated-time", "children"),
         Output("current-price-value", "children"),
         Output("average-price-value", "children"),
@@ -155,12 +111,10 @@ def register_callbacks(app, cache):
         Output("price_change_indicators", "children"),
         
         # Define the 3 inputs that trigger the callback
-        Input("date-range", "start_date"),
-        Input("date-range", "end_date"),
         Input("days-filter-dropdown", "value"),
         Input("interval-check", "n_intervals"), # Triggered by the 5-minute interval component to refresh data
     )
-    def update_graph(start_date, end_date, value, n_intervals):
+    def update_graph(value, n_intervals):
         """
         Main callback function: loads data, filters by date, calculates stats,
         and updates the graph and all stat cards.
@@ -173,21 +127,14 @@ def register_callbacks(app, cache):
 
         # Check for absolutely no data
         if df.empty:
-            return _get_empty_state_outputs(df, start_date, end_date)
+            return _get_empty_state_outputs()
         
         # Filter Data Based on Dropdown
         day_value = value if value is not None else 0
         date_filtered_by_days = _filter_dataframe_by_days(df, day_value)
-        
-        # Determine the actual date range to be used, including default handling
-        min_date_available, max_date_available, new_start_date, new_end_date = _determine_date_range(df, start_date, end_date)
 
-        # Filter the main DataFrame based on the determined dates
-        date_filtered = _filter_dataframe_by_dates(df, new_start_date, new_end_date)
-
-        # If a days filter is applied, override the date filtering
-        if day_value > 0:
-            date_filtered = date_filtered_by_days
+        # Date Range for Date Picker
+        date_filtered = date_filtered_by_days
 
         # Calculate statistics for the displayed range
         average_price_display, highest_price_display, lowest_price_display = _calculate_range_stats(date_filtered)
@@ -210,7 +157,6 @@ def register_callbacks(app, cache):
             default_figure = {"data": [], "layout": {"title": {"text": "No Data Available", "x": 0.5}}}
             return (
                 default_figure,
-                min_date_available, max_date_available, new_start_date, new_end_date,
                 last_updated_text,
                 current_price_display,
                 average_price_display,
@@ -225,7 +171,6 @@ def register_callbacks(app, cache):
         # Return the figure and the updated date picker/stat card properties.
         return (
             line_figure, 
-            min_date_available, max_date_available, new_start_date, new_end_date,
             last_updated_text, 
             current_price_display, 
             average_price_display, 

@@ -131,19 +131,6 @@ body {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
-/* DASH Overrides for the DatePickerRange */
-.dash-datepicker-container .DateInput_input {
-    border: 1px solid #d1d5db !important;
-    border-radius: 6px !important;
-    font-size: 1rem !important;
-    padding: 8px 12px !important;
-    color: #374151 !important;
-}
-
-.dash-datepicker-container .DateInput_input:hover {
-    border-color: #6366f1 !important;
-}
-
 /* Ensure the wrapper does not apply padding again to the dcc.Graph container */
 .wrapper > .card {
     padding: 0;
