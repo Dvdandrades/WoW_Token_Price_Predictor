@@ -1,6 +1,7 @@
 from dash import dcc, html
 from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, REGION_OPTIONS, DEFAULT_REGION
 
+
 def create_layout() -> html.Div:
     """Defines the overall layout of the Dash application."""
     return html.Div(
@@ -8,7 +9,10 @@ def create_layout() -> html.Div:
             # Header Section (Title and Description)
             html.Div(
                 children=[
-                    html.H1(children="World Of Warcraft Token Price", className="header-title"),
+                    html.H1(
+                        children="World Of Warcraft Token Price",
+                        className="header-title",
+                    ),
                     html.P(
                         children=(
                             "An interactive dashboard for exploring "
@@ -19,7 +23,11 @@ def create_layout() -> html.Div:
                     html.P(
                         id="last-updated-time",
                         className="header-description",
-                        style={"fontStyle": "italic", "marginTop": "5px", "fontSize": "0.9em"},
+                        style={
+                            "fontStyle": "italic",
+                            "marginTop": "5px",
+                            "fontSize": "0.9em",
+                        },
                     ),
                 ],
                 className="header",
@@ -91,7 +99,6 @@ def create_layout() -> html.Div:
                 ],
                 className="stats-container",
             ),
-
             # Menu Section (Date Range Picker and Dropdowns)
             html.Div(
                 children=[
@@ -109,7 +116,9 @@ def create_layout() -> html.Div:
                     ),
                     html.Div(
                         children=[
-                            html.Div(children="Region Selection", className="menu-title"),
+                            html.Div(
+                                children="Region Selection", className="menu-title"
+                            ),
                             dcc.Dropdown(
                                 id="region-selector-drowdown",
                                 options=REGION_OPTIONS,
@@ -122,7 +131,6 @@ def create_layout() -> html.Div:
                 ],
                 className="menu",
             ),
-
             # Visualization Section (Line Chart and Interval)
             html.Div(
                 children=[
@@ -135,7 +143,9 @@ def create_layout() -> html.Div:
                         className="card",
                     ),
                     # Auto-refresh interval (5 minutes) to trigger data reload/update
-                    dcc.Interval(id="interval-check", interval=5 * 60 * 1000, n_intervals=0),
+                    dcc.Interval(
+                        id="interval-check", interval=5 * 60 * 1000, n_intervals=0
+                    ),
                 ],
                 className="wrapper",
             ),

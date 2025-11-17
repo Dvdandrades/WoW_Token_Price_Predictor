@@ -10,7 +10,9 @@ import requests
 
 try:
     # Initialize the Blizzard API Client with credentials and regional settings.
-    api_client = BlizzardAPIClient(CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE)
+    api_client = BlizzardAPIClient(
+        CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE
+    )
 except ValueError as e:
     # Error when initializing the client.
     print(f"ERROR: API Client initialization failed: {e}")
@@ -18,10 +20,11 @@ except ValueError as e:
 
 # Ensure the database is initialized (creates tables if they don't exist).
 initialize_db()
-    
+
+
 def main():
     # Start of the WoW Token price tracking task.
-    print(f"\n--- WoW Token Tracker: Starting Data Fetch Task ---")
+    print("\n--- WoW Token Tracker: Starting Data Fetch Task ---")
 
     if api_client is None:
         # Stop the task if the API client failed to initialize earlier.
@@ -42,6 +45,7 @@ def main():
         # Catch any other unexpected errors during the tracking process.
         print(f"An unexpected error occurred during the tracking process: {e}")
 
+
 def run_schedule():
     # Schedule the 'main' function to run at a regular interval.
     schedule.every(20).minutes.do(main)
@@ -50,6 +54,7 @@ def run_schedule():
     while True:
         schedule.run_pending()
         time.sleep(1)
+
 
 if __name__ == "__main__":
     # Execute 'main' immediately to get the first data point upon startup.

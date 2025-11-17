@@ -3,19 +3,30 @@ import time
 import json
 from pathlib import Path
 
+
 # Blizzard API Client Class
 class BlizzardAPIClient:
     """
     A client for the Blizzard API, handling OAuth2 client credentials flow
     for token generation, token caching, and making API requests.
     """
-    def __init__(self, client_id: str, client_secret: str, region: str, locale: str, token_cache_file: Path):
+
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        region: str,
+        locale: str,
+        token_cache_file: Path,
+    ):
         """
         Initializes the client with credentials and configuration.
         """
         if not client_id or not client_secret:
-            raise ValueError("CLIENT_ID and CLIENT_SECRET must be set in environment variables.")
-        
+            raise ValueError(
+                "CLIENT_ID and CLIENT_SECRET must be set in environment variables."
+            )
+
         self.client_id: str = client_id
         self.client_secret: str = client_secret
         self.locale: str = locale
@@ -29,7 +40,6 @@ class BlizzardAPIClient:
         self.namespace = f"dynamic-{region}"
         # Private attribute to store the access token in memory.
         self._access_token = None
-
 
     def _load_token_cache(self) -> str | None:
         """
@@ -45,13 +55,12 @@ class BlizzardAPIClient:
                         self._access_token = data.get("access_token")
                         return self._access_token
                     else:
-                        self.token_cache_file.unlink() # Remove expired cache file.
+                        self.token_cache_file.unlink()  # Remove expired cache file.
             # Handle case where the cache file exists but is corrupted/empty.
             except json.JSONDecodeError:
                 pass
         self._access_token = None
         return None
-
 
     def _save_token_cache(self, token: str, expiry: int):
         """
@@ -60,43 +69,42 @@ class BlizzardAPIClient:
         # Ensure the directory for the cache file exists.
         self.token_cache_file.parent.mkdir(parents=True, exist_ok=True)
         data = {
-           "access_token": token,
-           # Calculate absolute expiry time: current time + token lifetime
-           "expiry": time.time() + expiry
+            "access_token": token,
+            # Calculate absolute expiry time: current time + token lifetime
+            "expiry": time.time() + expiry,
         }
-        with open(self.token_cache_file, 'w') as f:
+        with open(self.token_cache_file, "w") as f:
             json.dump(data, f)
         # Also update the in-memory token.
         self._access_token = token
-
 
     def get_access_token(self) -> str:
         """
         Retrieves a valid access token, first checking memory, then cache,
         and finally requesting a new one from the Blizzard OAuth server if necessary.
         """
-        
+
         # Check cached token.
         cached_token = self._load_token_cache()
         if cached_token:
             return cached_token
-        
+
         # Request a new token if memory and cache miss.
         data = {"grant_type": "client_credentials"}
 
         try:
             # Send POST request for token, using HTTP Basic Auth with client_id and client_secret.
             response = requests.post(
-                self.oauth_url,
-                data=data,
-                auth=(self.client_id, self.client_secret)
+                self.oauth_url, data=data, auth=(self.client_id, self.client_secret)
             )
             # Raise an exception for bad status codes (4xx or 5xx).
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             # Re-raise with a specific message if the request fails.
-            raise requests.exceptions.RequestException(f"Failed to obtain access token: {e}")
-        
+            raise requests.exceptions.RequestException(
+                f"Failed to obtain access token: {e}"
+            )
+
         token_data = response.json()
         token = token_data.get("access_token")
         # Get the token lifetime in seconds, defaulting to 1 hour (3600s).
@@ -116,8 +124,10 @@ class BlizzardAPIClient:
             access_token = self.get_access_token()
         except (ValueError, requests.exceptions.RequestException) as e:
             # Reraise token acquisition errors to the caller.
-            raise requests.exceptions.RequestException(f"Failed to obtain access token: {e}")
-        
+            raise requests.exceptions.RequestException(
+                f"Failed to obtain access token: {e}"
+            )
+
         # Construct the specific API endpoint URL for the WoW Token index.
         url = f"{self.api_base_url}/data/wow/token/index"
 
@@ -135,15 +145,19 @@ class BlizzardAPIClient:
             response = requests.get(url, params=params, headers=headers)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
-            raise requests.exceptions.RequestException(f"Failed to fetch WoW Token price: {e}")
-        
+            raise requests.exceptions.RequestException(
+                f"Failed to fetch WoW Token price: {e}"
+            )
+
         token_data = response.json()
 
         price = token_data.get("price")
 
         # Simple validation to ensure the expected data is present.
         if price is None:
-            raise KeyError(f"API response missing 'price' key. Response data: {token_data}")
-        
+            raise KeyError(
+                f"API response missing 'price' key. Response data: {token_data}"
+            )
+
         # Returns the full JSON response containing the 'price' (in copper).
         return price
