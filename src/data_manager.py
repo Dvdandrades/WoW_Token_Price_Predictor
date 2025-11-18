@@ -11,7 +11,7 @@ def initialize_db():
     """
     Initializes the SQLite database and creates the 'token_prices' table
     if it does not already exist.
-    The table stores the timestamp and the WoW Token price in gold.
+    The table stores the timestamp, the WoW Token price in gold and the region.
     """
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
@@ -20,21 +20,23 @@ def initialize_db():
             CREATE TABLE IF NOT EXISTS token_prices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 datetime TEXT NOT NULL,
-                price_gold INTEGER NOT NULL
+                price_gold INTEGER NOT NULL,
+                region TEXT NOT NULL
             )
         """)
         conn.commit()
 
 
-def save_price(price_cooper: int):
+def save_price(price_cooper: int, region: str):
     """
-    Saves the WoW Token price to the SQLite database.
+    Saves the WoW Token price and region to the SQLite database.
 
     The input price is assumed to be in cooper (1 gold = 10,000 cooper).
     It converts the price to gold and stores it with the current UTC timestamp.
 
     Args:
         price_cooper (int): The WoW Token price in cooper coins.
+        region (str): The region for which the price is being saved.
     """
 
     try:
@@ -49,8 +51,8 @@ def save_price(price_cooper: int):
             # Insert the data into the 'token_prices' table
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO token_prices (datetime, price_gold) VALUES (?, ?)",
-                (now_utc, gold),
+                "INSERT INTO token_prices (datetime, price_gold, region) VALUES (?, ?, ?)",
+                (now_utc, gold, region),
             )
             conn.commit()
 

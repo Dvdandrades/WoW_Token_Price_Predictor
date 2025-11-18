@@ -29,6 +29,7 @@ class BlizzardAPIClient:
 
         self.client_id: str = client_id
         self.client_secret: str = client_secret
+        self.region = region
         self.locale: str = locale
         self.token_cache_file: Path = token_cache_file
 
