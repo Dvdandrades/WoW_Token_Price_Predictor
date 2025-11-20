@@ -120,7 +120,7 @@ def create_layout() -> html.Div:
                                 children="Region Selection", className="menu-title"
                             ),
                             dcc.Dropdown(
-                                id="region-selector-drowdown",
+                                id="region-selector-dropdown",
                                 options=REGION_OPTIONS,
                                 value=DEFAULT_REGION,
                                 clearable=False,
