@@ -125,8 +125,9 @@ def register_callbacks(app, cache):
         Input(
             "interval-check", "n_intervals"
         ),  # Triggered by the 5-minute interval component to refresh data
+        Input("region-selector-dropdown", "value"),
     )
-    def update_graph(value, n_intervals):
+    def update_graph(value, n_intervals, region):
         """
         Main callback function: loads data, filters by date, calculates stats,
         and updates the graph and all stat cards.
@@ -135,7 +136,7 @@ def register_callbacks(app, cache):
         # Retrieve the database file's modification time for the cache invalidation key.
         mtime = get_db_mtime()
         # Load the cached or fresh data from the database using the mtime as the cache key.
-        df = load_data(mtime, cache)
+        df = load_data(mtime, cache, region)
 
         # Check for absolutely no data
         if df.empty:
