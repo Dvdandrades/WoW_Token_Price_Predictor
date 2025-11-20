@@ -1,68 +1,63 @@
 from api_client import BlizzardAPIClient
 from data_manager import save_price, initialize_db
 from app import app
-from config import CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE
+from config import CLIENT_ID, CLIENT_SECRET, REGION_OPTIONS, LOCALE, TOKEN_CACHE_FILE
 
 import time
 import schedule
 import threading
 import requests
 
-try:
-    # Initialize the Blizzard API Client with credentials and regional settings.
-    api_client = BlizzardAPIClient(
-        CLIENT_ID, CLIENT_SECRET, DEFAULT_REGION, LOCALE, TOKEN_CACHE_FILE
-    )
-except ValueError as e:
-    # Error when initializing the client.
-    print(f"ERROR: API Client initialization failed: {e}")
-    api_client = None
-
-# Ensure the database is initialized (creates tables if they don't exist).
 initialize_db()
 
-
-def main():
-    # Start of the WoW Token price tracking task.
-    print("\n--- WoW Token Tracker: Starting Data Fetch Task ---")
-
-    if api_client is None:
-        # Stop the task if the API client failed to initialize earlier.
-        print("ERROR: API client is not initialized. Skipping data fetch.")
-        return
-
+API_CLIENTS = {}
+for region_option in REGION_OPTIONS:
+    region = region_option["value"]
     try:
-        # Fetch the current WoW Token price data from the Blizzard API.
-        price = api_client.fetch_wow_token_price()
+        client = BlizzardAPIClient(
+            CLIENT_ID, CLIENT_SECRET, region, LOCALE, TOKEN_CACHE_FILE
+        )
+        API_CLIENTS[region] = client
+    except ValueError as e:
+        print(f"ERROR: Client initialization failed for region {region}: {e}")
 
-        # Save the fetched price to the database.
-        save_price(price)
+
+def main(api_client: BlizzardAPIClient):
+    region = api_client.region
+
+    # Start of the WoW Token price tracking task.
+    try:
+        price = api_client.fetch_wow_token_price()
+        save_price(price, api_client.region)
 
     except requests.exceptions.RequestException as e:
-        # Error during the API request.
-        print(f"ERROR: API request failed (Network/HTTP error): {e}")
+        print(f"ERROR: API request failed for {region}: {e}")
     except Exception as e:
-        # Catch any other unexpected errors during the tracking process.
-        print(f"An unexpected error occurred during the tracking process: {e}")
+        print(
+            f"An unexpected error occurred during the tracking process for {region}: {e}"
+        )
 
 
 def run_schedule():
-    # Schedule the 'main' function to run at a regular interval.
-    schedule.every(20).minutes.do(main)
+    for region, client in API_CLIENTS.items():
+        schedule.every(20).minutes.do(main, api_client=client)
 
     # Continuous loop to check for and execute pending scheduled jobs.
     while True:
-        schedule.run_pending()
+        try:
+            schedule.run_pending()
+        except Exception as e:
+            print(f"CRITICAL SCHEDULER ERROR: {e}")
         time.sleep(1)
 
 
-if __name__ == "__main__":
-    # Execute 'main' immediately to get the first data point upon startup.
-    main()
-
+if __name__ == "__main__":    
     # Start the scheduler in a separate thread to run the tracking task in the background.
     scheduler_thread = threading.Thread(target=run_schedule, daemon=True)
     scheduler_thread.start()
+
+    for client in API_CLIENTS.values():
+        threading.Thread(target=main, args=(client,)).start()
 
     # Start the Dash web dashboard, which serves the data visualization.
     app.run(debug=False)
