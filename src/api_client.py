@@ -31,7 +31,9 @@ class BlizzardAPIClient:
         self.client_secret: str = client_secret
         self.region = region
         self.locale: str = locale
-        self.token_cache_file: Path = token_cache_file.parent / f"token_cache_{region}.json"
+        self.token_cache_file: Path = (
+            token_cache_file.parent / f"token_cache_{region}.json"
+        )
 
         # Define the static OAuth token endpoint URL.
         self.oauth_url = "https://oauth.battle.net/token"

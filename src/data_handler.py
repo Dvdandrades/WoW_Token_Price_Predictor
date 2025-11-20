@@ -92,11 +92,7 @@ def load_data(mtime: float, cache, region: str) -> pd.DataFrame:
             conn = sqlite3.connect(DB_PATH)
             # Read all 'datetime' and 'price_gold' data, ordered by datetime, into a DataFrame
             sql_query = "SELECT datetime, price_gold FROM token_prices WHERE region = ? ORDER BY datetime"
-            df = pd.read_sql_query(
-                sql_query,
-                conn,
-                params=(region,)
-            )
+            df = pd.read_sql_query(sql_query, conn, params=(region,))
             # Close the database connection
             conn.close()
 

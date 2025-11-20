@@ -26,7 +26,9 @@ def initialize_db():
             
         """)
 
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)"
+        )
 
         conn.commit()
 
