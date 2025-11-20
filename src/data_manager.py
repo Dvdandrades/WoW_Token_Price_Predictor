@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from config import DB_PATH
-from config import COOPER_PER_GOLD
+from config import COPPER_PER_GOLD
 import sqlite3
 
 # Ensure the 'data' directory exists within the project root before attempting to create the database file.
@@ -23,7 +23,11 @@ def initialize_db():
                 price_gold INTEGER NOT NULL,
                 region TEXT NOT NULL
             )
+            
         """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)")
+
         conn.commit()
 
 
@@ -46,7 +50,7 @@ def save_price(price_cooper: int, region: str):
             now_utc: str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
             # Convert the price from cooper to gold (10,000 cooper = 1 gold)
-            gold: int = price_cooper // COOPER_PER_GOLD
+            gold: int = price_cooper // COPPER_PER_GOLD
 
             # Insert the data into the 'token_prices' table
             cursor = conn.cursor()
