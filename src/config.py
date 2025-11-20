@@ -14,7 +14,7 @@ LOCALE: str = "en_US"
 TOKEN_CACHE_FILE: Path = PROJECT_ROOT / "data" / "token_cache.json"
 DB_PATH: Path = PROJECT_ROOT / "data" / "wow_token_prices.db"
 
-COOPER_PER_GOLD: int = 10000
+COPPER_PER_GOLD: int = 10000
 
 CACHE_TIMEOUT_MINUTES: int = 19
 EMA_SPAN_DAYS: int = 7
