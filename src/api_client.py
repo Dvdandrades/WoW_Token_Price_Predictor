@@ -8,7 +8,7 @@ from pathlib import Path
 class BlizzardAPIClient:
     """
     A client for the Blizzard API, handling OAuth2 client credentials flow
-    for token generation, token caching, and making API requests.
+    for token generation, token caching (multiple regions), and making API requests.
     """
 
     def __init__(
@@ -31,7 +31,7 @@ class BlizzardAPIClient:
         self.client_secret: str = client_secret
         self.region = region
         self.locale: str = locale
-        self.token_cache_file: Path = token_cache_file
+        self.token_cache_file: Path = token_cache_file.parent / f"token_cache_{region}.json"
 
         # Define the static OAuth token endpoint URL.
         self.oauth_url = "https://oauth.battle.net/token"
