@@ -57,9 +57,9 @@ def _preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def load_data(mtime: float, cache) -> pd.DataFrame:
+def load_data(mtime: float, cache, region: str) -> pd.DataFrame:
     """
-    Load and preprocess the WoW token price data from the SQLite database, utilizing a cache.
+    Load and preprocess the WoW token price data and region from the SQLite database, utilizing a cache.
 
     The 'mtime' parameter forces cache invalidation when the underlying database file changes.
 
@@ -69,6 +69,8 @@ def load_data(mtime: float, cache) -> pd.DataFrame:
         Modification time of the database file used as the cache key.
     cache : dash.caching.Cache
         The Dash application's cache object.
+    region: str
+        The region for which the data is being loaded.
 
     Returns
     -------
@@ -79,7 +81,7 @@ def load_data(mtime: float, cache) -> pd.DataFrame:
     # Decorator to cache the result of the function call based on its arguments.
     # The 'mtime' parameter acts as a cache key: if it changes (DB updated), the cache is invalidated.
     @cache.memoize(timeout=60 * CACHE_TIMEOUT_MINUTES)  # Cache data for 19 minutes
-    def cached_load(mtime):
+    def cached_load(mtime, region):
         # Check if the database file exists before attempting connection.
         if not DB_PATH.exists():
             print(f"Database not found at {DB_PATH}. Returning empty DataFrame.")
@@ -89,8 +91,11 @@ def load_data(mtime: float, cache) -> pd.DataFrame:
             # Connect to the SQLite database
             conn = sqlite3.connect(DB_PATH)
             # Read all 'datetime' and 'price_gold' data, ordered by datetime, into a DataFrame
+            sql_query = "SELECT datetime, price_gold FROM token_prices WHERE region = ? ORDER BY datetime"
             df = pd.read_sql_query(
-                "SELECT datetime, price_gold FROM token_prices ORDER BY datetime", conn
+                sql_query,
+                conn,
+                params=(region,)
             )
             # Close the database connection
             conn.close()
@@ -105,4 +110,4 @@ def load_data(mtime: float, cache) -> pd.DataFrame:
             return pd.DataFrame(columns=["datetime", "price_gold", "ema"])
 
     # Call the decorated function with the modification time to trigger caching
-    return cached_load(mtime)
+    return cached_load(mtime, region)
