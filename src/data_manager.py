@@ -1,19 +1,32 @@
 from datetime import datetime, timezone
-from config import DB_PATH
-from config import COPPER_PER_GOLD
+from config import DB_PATH, COPPER_PER_GOLD
 import sqlite3
 
-# Ensure the 'data' directory exists within the project root before attempting to create the database file.
+# Ensure the 'data' directory exists within the project root before initializing the DB.
 DB_PATH.parent.mkdir(exist_ok=True)
+
+
+def get_db_connection():
+    """
+    Establishes a connection to the SQLite database with a timeout.
+    Enables Write-Ahead Logging (WAL) to handle concurrent reads/writes better.
+    """
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    
+    # optimize performance and concurrency
+    conn.execute("PRAGMA journal_mode=WAL;")
+    
+    return conn
 
 
 def initialize_db():
     """
-    Initializes the SQLite database and creates the 'token_prices' table
-    if it does not already exist.
-    The table stores the timestamp, the WoW Token price in gold and the region.
+    Initializes the SQLite database schema.
+    
+    Creates the 'token_prices' table and a composite index for efficient 
+    querying by region and date if they do not already exist.
     """
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_db_connection() as conn:
         cursor = conn.cursor()
 
         cursor.execute("""
@@ -23,9 +36,9 @@ def initialize_db():
                 price_gold INTEGER NOT NULL,
                 region TEXT NOT NULL
             )
-            
         """)
 
+        # Create an index to speed up queries filtering by region and sorting by date
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)"
         )
@@ -33,28 +46,25 @@ def initialize_db():
         conn.commit()
 
 
-def save_price(price_cooper: int, region: str):
+def save_price(price_copper: int, region: str):
     """
     Saves the WoW Token price and region to the SQLite database.
 
-    The input price is assumed to be in cooper (1 gold = 10,000 cooper).
-    It converts the price to gold and stores it with the current UTC timestamp.
+    The input price is assumed to be in copper. This function converts 
+    the price to gold and stores it with the current UTC timestamp.
 
     Args:
-        price_cooper (int): The WoW Token price in cooper coins.
+        price_copper (int): The WoW Token price in copper coins.
         region (str): The region for which the price is being saved.
     """
-
     try:
-        # Connect to the SQLite database
-        with sqlite3.connect(DB_PATH) as conn:
-            # Get the current time in UTC and format it for database storage
+        with get_db_connection() as conn:
+            # Generate current UTC timestamp string
             now_utc: str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-            # Convert the price from cooper to gold (10,000 cooper = 1 gold)
-            gold: int = price_cooper // COPPER_PER_GOLD
+            # Convert copper to gold
+            gold: int = price_copper // COPPER_PER_GOLD
 
-            # Insert the data into the 'token_prices' table
             cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO token_prices (datetime, price_gold, region) VALUES (?, ?, ?)",
@@ -67,5 +77,4 @@ def save_price(price_cooper: int, region: str):
             )
 
     except Exception as e:
-        # Detailed error message for any failure during the save operation
         print(f"**ERROR:** Failed to save price data to the database. Details: {e}")
