@@ -3,6 +3,7 @@ import time
 import sqlite3
 import os
 from config import DB_PATH, EMA_SPAN_DAYS, CACHE_TIMEOUT_MINUTES
+from data_manager import get_db_connection
 
 
 def get_db_mtime() -> float:
@@ -89,12 +90,10 @@ def load_data(mtime: float, cache, region: str) -> pd.DataFrame:
 
         try:
             # Connect to the SQLite database
-            conn = sqlite3.connect(DB_PATH)
-            # Read all 'datetime' and 'price_gold' data, ordered by datetime, into a DataFrame
-            sql_query = "SELECT datetime, price_gold FROM token_prices WHERE region = ? ORDER BY datetime"
-            df = pd.read_sql_query(sql_query, conn, params=(region,))
-            # Close the database connection
-            conn.close()
+            with get_db_connection() as conn:
+                # Read all 'datetime' and 'price_gold' data, ordered by datetime, into a DataFrame
+                sql_query = "SELECT datetime, price_gold FROM token_prices WHERE region = ? ORDER BY datetime"
+                df = pd.read_sql_query(sql_query, conn, params=(region,))
 
             # Apply preprocessing steps to the loaded data
             return _preprocess_data(df)
