@@ -2,7 +2,6 @@ import time
 import schedule
 import requests
 import logging
-
 from api_client import BlizzardAPIClient
 from data_manager import save_price, initialize_db
 from config import CLIENT_ID, CLIENT_SECRET, REGION_OPTIONS, LOCALE, TOKEN_CACHE_FILE
@@ -19,8 +18,10 @@ def run_collection_job(api_client: BlizzardAPIClient):
     """
     Fetches the WoW token price for a specific region and saves it to the database.
 
+    Handles API request errors and logs the status of the operation.
+
     Args:
-        api_client (BlizzardAPIClient): The client instance configured for a specific region.
+        api_client: The BlizzardAPIClient instance configured for a specific region.
     """
     region = api_client.region
     logging.info(f"Starting price collection for region: {region}")
@@ -29,9 +30,9 @@ def run_collection_job(api_client: BlizzardAPIClient):
         # Attempt to fetch the current price from the API
         price = api_client.fetch_wow_token_price()
 
-        # Save the price data using the data manager
+        # Save the price data using the data manager, which handles metric calculation
         save_price(price, region)
-        logging.info(f"Price saved for {region}: {price}")
+        logging.info(f"Price saved for {region}: {price} copper.")
 
     except requests.exceptions.RequestException as e:
         # Handle network or API-specific errors
@@ -43,10 +44,12 @@ def run_collection_job(api_client: BlizzardAPIClient):
 
 def start_worker():
     """
-    Main entry point for the worker. Initializes the database, creates API clients,
-    schedules jobs, and runs the main execution loop.
+    Main entry point for the worker process.
+
+    Initializes the database, creates a BlizzardAPIClient for each configured region,
+    schedules the collection job to run periodically, and enters the main execution loop.
     """
-    # Initialize the database connection
+    # Initialize the database structure if it doesn't exist
     initialize_db()
     logging.info("Database initialized.")
 
@@ -67,15 +70,15 @@ def start_worker():
 
     # Schedule jobs for all successfully initialized clients
     for client in api_clients.values():
-        # Run the job immediately so we don't have to wait for the first interval
+        # Run the job immediately to populate the database on startup
         run_collection_job(client)
 
-        # Schedule the job to run every 20 minutes
+        # Schedule the job to run every 20 minutes for continuous data collection
         schedule.every(20).minutes.do(run_collection_job, api_client=client)
 
     logging.info("Scheduler started. Waiting for tasks...")
 
-    # Main application loop
+    # Main application loop that checks and runs scheduled jobs
     while True:
         try:
             # Check and run any pending scheduled tasks
@@ -84,7 +87,7 @@ def start_worker():
             # Catch critical errors to prevent the worker from crashing completely
             logging.critical(f"CRITICAL SCHEDULER ERROR: {e}")
 
-        # Sleep briefly to prevent high CPU usage
+        # Sleep briefly to prevent high CPU usage while waiting for the next scheduled run
         time.sleep(1)
 
 

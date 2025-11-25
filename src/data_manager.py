@@ -12,7 +12,7 @@ def get_db_connection() -> Connection:
     """
     Establishes a connection to the SQLite database with a defined timeout.
 
-    Enables Write-Ahead Logging (WAL) mode to improve concurrency and
+    Enables Write-Ahead Logging mode to improve concurrency and
     performance for mixed read/write operations.
 
     Returns:
@@ -28,11 +28,12 @@ def get_db_connection() -> Connection:
 
 def initialize_db() -> None:
     """
-    Initializes the SQLite database schema and performs migrations.
+    Initializes the SQLite database schema for storing token prices.
 
-    1. Creates the 'token_prices' table if it does not exist.
-    2. Checks for new columns and adds them if missing.
-    3. Creates a composite index for efficient querying by region and date.
+    - Creates the 'token_prices' table if it does not exist.
+    - Checks for and adds derived metric columns ('ema', 'price_change_abs',
+       'price_change_pct') to support schema evolution.
+    - Creates a composite index for efficient querying by region and date.
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -51,6 +52,7 @@ def initialize_db() -> None:
         cursor.execute("PRAGMA table_info(token_prices)")
         existing_columns = [info[1] for info in cursor.fetchall()]
 
+        # Columns for derived metrics
         new_columns = {
             "ema": "INTEGER",
             "price_change_abs": "INTEGER",
@@ -63,7 +65,7 @@ def initialize_db() -> None:
                     f"ALTER TABLE token_prices ADD COLUMN {col_name} {col_type}"
                 )
 
-        # Optimize sorting by date within a specific region
+        # Optimize sorting by date within a specific region, which is the primary query pattern
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)"
         )
@@ -77,13 +79,14 @@ def _get_last_record(
     """
     Internal helper to fetch the most recent price and EMA for a specific region.
 
+    Used by `save_price` to calculate price changes and the new EMA value.
+
     Args:
-        cursor (sqlite3.Cursor): The active database cursor.
-        region (str): The region identifier.
+        cursor: The active database cursor.
+        region: The region identifier.
 
     Returns:
-        Optional[Tuple[int, Optional[int]]]: A tuple containing (price_gold, ema)
-        if a record exists, otherwise None.
+        A tuple containing (price_gold, ema) if a record exists, otherwise None.
     """
     cursor.execute(
         """SELECT price_gold, ema
@@ -97,22 +100,25 @@ def _get_last_record(
 
 def save_price(price_copper: int, region: str) -> None:
     """
-    Calculates metrics and saves the current WoW Token price to the database.
+    Calculates metrics and saves the current WoW Token price
+    to the database with a UTC timestamp.
 
-    1. Converts raw copper value to gold.
-    2. Fetches the previous record to calculate price changes.
-    3. Calculates the new Exponential Moving Average.
-    4. Inserts the fully calculated record with a UTC timestamp.
+    - Converts raw copper value to gold.
+    - Fetches the previous record to calculate price changes.
+    - Calculates the new Exponential Moving Average (EMA).
+    - Inserts the fully calculated record.
 
     Args:
-        price_copper (int): The WoW Token price in copper.
-        region (str): The region identifier.
+        price_copper: The WoW Token price in copper as fetched from the API.
+        region: The region identifier for the saved price.
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
 
+            # Record the current time in UTC for consistency
             now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            # Convert the copper price to gold
             current_gold = price_copper // COPPER_PER_GOLD
 
             # Retrieve previous data for comparison and EMA calculation
@@ -123,22 +129,25 @@ def save_price(price_copper: int, region: str) -> None:
 
                 # Calculate Price Movement
                 change_abs = current_gold - last_price
+                # Calculate percentage change based on the previous price
                 change_pct = (change_abs / last_price) * 100
 
                 # EMA Calculation
-                # Use previous price as EMA seed if previous EMA is null
+                # The seed for the EMA is the first recorded price if no previous EMA exists
                 prev_ema = last_ema if last_ema is not None else last_price
 
-                # Smoothing factor based on configured span
+                # Smoothing factor based on the configured EMA span in days
                 alpha = 2 / (EMA_SPAN_DAYS + 1)
+                # The EMA formula
                 current_ema = (current_gold * alpha) + (prev_ema * (1 - alpha))
 
             else:
-                # First record for this region; initialize defaults
+                # First record for this region; initialize changes to zero and EMA to the current price
                 change_abs = 0
                 change_pct = 0.0
                 current_ema = current_gold
 
+            # Insert the new record with all calculated metrics
             cursor.execute(
                 """INSERT INTO token_prices
                 (datetime, price_gold, region, ema, price_change_abs, price_change_pct)
@@ -156,4 +165,5 @@ def save_price(price_copper: int, region: str) -> None:
             conn.commit()
 
     except Exception as e:
+        # Log the error for debugging without stopping the worker
         print(f"ERROR: Failed saving in the database: {e}")

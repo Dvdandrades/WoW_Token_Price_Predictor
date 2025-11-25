@@ -20,12 +20,13 @@ external_stylesheet = [
 
 # Initialize the Dash app, explicitly defining the custom assets folder and stylesheets.
 app = Dash(__name__, assets_folder=ASSET_PATH, external_stylesheets=external_stylesheet)
-app.title = "WoW Token Price"
+app.title = "WoW Token Price Dashboard"
 
 # Expose the underlying Flask server for WSGI deployment.
 server = app.server
 
-# Initialize Flask-Caching with SimpleCache to optimize API response times.
+# Initialize Flask-Caching with SimpleCache to optimize API response times
+# and reduce database load by caching data loaded from the DB.
 cache = Cache(app.server, config={"CACHE_TYPE": "SimpleCache"})
 
 # Load and assign the application's visual structure.
@@ -36,4 +37,5 @@ register_callbacks(app, cache)
 
 # Start the application server if this script is executed directly.
 if __name__ == "__main__":
+    # Use debug=False for production-like performance testing
     app.run(debug=False, port=8050)
