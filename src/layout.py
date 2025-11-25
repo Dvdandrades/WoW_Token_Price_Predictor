@@ -9,6 +9,7 @@ def create_layout() -> html.Div:
             # Header Section (Title and Description)
             html.Div(
                 children=[
+                    dcc.Store(id="token-data-store", storage_type="memory"),
                     html.H1(
                         children="World Of Warcraft Token Price",
                         className="header-title",
