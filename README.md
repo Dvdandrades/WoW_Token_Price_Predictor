@@ -4,6 +4,8 @@ A Python-based tool to **predict the in-game gold price of the WoW Token** in Wo
 
 ---
 
+![Dashboard](assets/Dashboard.jpg)
+
 ## Why this project
 
 - The WoW Token allows players to exchange real money for gold (or gold for game time). The exchange rate fluctuates with in-game supply & demand, expansions, events, etc.  
