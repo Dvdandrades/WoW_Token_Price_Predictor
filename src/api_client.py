@@ -54,7 +54,7 @@ class BlizzardAPIClient:
         self.namespace = f"dynamic-{region}"
         self._access_token = None
 
-        # Configure retry strategy for transient network/server errors
+        # Configure retry strategy for transient server errors
         retry_strategy = Retry(
             total=3,
             backoff_factor=1,
