@@ -2,11 +2,11 @@ import time
 import schedule
 import requests
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from api_client import BlizzardAPIClient
 from data_manager import save_price, initialize_db
 from config import CLIENT_ID, CLIENT_SECRET, REGION_OPTIONS, LOCALE, TOKEN_CACHE_FILE
 
-# Configure logging to display timestamp, level, and message
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -14,80 +14,93 @@ logging.basicConfig(
 )
 
 
-def run_collection_job(api_client: BlizzardAPIClient):
+def run_collection_job(api_client: BlizzardAPIClient) -> None:
     """
-    Fetches the WoW token price for a specific region and saves it to the database.
-
-    Handles API request errors and logs the status of the operation.
-
+    Fetches the WoW token price for a specific region and persists it.
+ 
     Args:
-        api_client: The BlizzardAPIClient instance configured for a specific region.
+        api_client: A BlizzardAPIClient configured for the target region.
     """
     region = api_client.region
     logging.info(f"Starting price collection for region: {region}")
 
     try:
-        # Attempt to fetch the current price from the API
         price = api_client.fetch_wow_token_price()
-
-        # Save the price data using the data manager, which handles metric calculation
         save_price(price, region)
         logging.info(f"Price saved for {region}: {price} copper.")
-
     except requests.exceptions.RequestException as e:
-        # Handle network or API-specific errors
         logging.error(f"API error for {region}: {e}")
     except Exception as e:
-        # Handle any other unexpected errors during the process
         logging.error(f"Unexpected error for {region}: {e}")
 
 
-def start_worker():
+def run_all_regions(api_clients: dict[str, BlizzardAPIClient]) -> None:
     """
-    Main entry point for the worker process.
-
-    Initializes the database, creates a BlizzardAPIClient for each configured region,
-    schedules the collection job to run periodically, and enters the main execution loop.
+    Runs the collection job for all regions in parallel using a thread pool.
+ 
+    Args:
+        api_clients: A mapping of region identifier to its API client.
     """
-    # Initialize the database structure if it doesn't exist
-    initialize_db()
-    logging.info("Database initialized.")
+    with ThreadPoolExecutor(max_workers=len(api_clients)) as executor:
+        futures = {
+            executor.submit(run_collection_job, client): region
+            for region, client in api_clients.items()
+        }
+        for future in as_completed(futures):
+            region = futures[future]
+            exc = future.exception()
+            if exc:
+                logging.error(f"Unhandled exception in thread for {region}: {exc}")
 
-    api_clients = {}
 
-    # Iterate through all configured regions to set up API clients
+def _build_api_clients() -> dict[str, BlizzardAPIClient]:
+    """
+    Initializes a BlizzardAPIClient for each configured region.
+ 
+    Returns:
+        A dict mapping region identifiers to their respective API clients.
+        Regions that fail to initialize are skipped with an error log.
+    """
+    clients = {}
     for region_option in REGION_OPTIONS:
         region = region_option["value"]
         try:
-            # Initialize the Blizzard API client with credentials and config
-            client = BlizzardAPIClient(
+            clients[region] = BlizzardAPIClient(
                 CLIENT_ID, CLIENT_SECRET, region, LOCALE, TOKEN_CACHE_FILE
             )
-            api_clients[region] = client
             logging.info(f"Client initialized for region: {region}")
         except ValueError as e:
             logging.error(f"Failed to initialize client for {region}: {e}")
+    return clients
+    
 
-    # Schedule jobs for all successfully initialized clients
-    for client in api_clients.values():
-        # Run the job immediately to populate the database on startup
-        run_collection_job(client)
+def start_worker():
+    """
+    Entry point for the worker process.
+ 
+    Initializes the database, builds API clients, runs an immediate collection
+    pass for all regions in parallel, then schedules periodic runs.
+    """
+    initialize_db()
+    logging.info("Database initialized.")
 
-        # Schedule the job to run every 20 minutes for continuous data collection
-        schedule.every(20).minutes.do(run_collection_job, api_client=client)
+    api_clients = _build_api_clients()
+    if not api_clients:
+        logging.critical("No API clients could be initialized. Exiting.")
+        return
 
+    # Immediate collection pass on startup
+    run_all_regions(api_clients)
+
+    # Schedule the parallel job every 20 minutes
+    schedule.every(20).minutes.do(run_all_regions, api_clients=api_clients)
     logging.info("Scheduler started. Waiting for tasks...")
 
-    # Main application loop that checks and runs scheduled jobs
     while True:
         try:
-            # Check and run any pending scheduled tasks
             schedule.run_pending()
         except Exception as e:
-            # Catch critical errors to prevent the worker from crashing completely
-            logging.critical(f"CRITICAL SCHEDULER ERROR: {e}")
-
-        # Sleep briefly to prevent high CPU usage while waiting for the next scheduled run
+            logging.critical(f"Scheduler error: {e}")
         time.sleep(1)
 
 

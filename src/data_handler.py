@@ -2,89 +2,79 @@ import pandas as pd
 import sqlite3
 import os
 import time
-from config import DB_PATH, CACHE_TIMEOUT_MINUTES
+from config import DB_PATH, CACHE_TIMEOUT_MINUTES, EMPTY_DF_COLUMNS
 from data_manager import get_db_connection
-
 
 def get_db_mtime() -> float:
     """
     Returns the modification time of the SQLite database file.
 
-    This time is used as a cache key to force a cache reload whenever the
-    underlying database file is updated by the worker.
+    This value is used as part of the cache key to force a reload
+    whenever the underlying database is updated by the worker.
 
     Returns:
-        float: The time of the last modification,
-               or the current time if the file does not exist.
+        The last-modified timestamp, or the current time if the file doesn't exist.
     """
-    # Check if the database file exists
     if DB_PATH.exists():
-        # Return the time of the last modification
         return os.path.getmtime(DB_PATH)
-    # If the database file is not found, return the current time
     return time.time()
+
+
+def _load_from_db(region: str) -> pd.DataFrame:
+    """
+    Queries the database for token prices for the given region.
+
+    Args:
+        region: The region identifier.
+
+    Returns:
+        A sorted DataFrame with price data, or an empty DataFrame on error.
+    """
+    if not DB_PATH.exists():
+        return pd.DataFrame(columns=EMPTY_DF_COLUMNS)
+
+    try:
+        with get_db_connection() as conn:
+            sql_query = """
+                SELECT datetime, price_gold, ema, price_change_abs, price_change_pct
+                FROM token_prices
+                WHERE region = ?
+                ORDER BY datetime ASC
+            """
+            df = pd.read_sql_query(sql_query, conn, params=(region,))
+
+        if not df.empty:
+            df["datetime"] = pd.to_datetime(df["datetime"])
+
+        return df
+
+    except sqlite3.Error as e:
+        print(f"SQLite error during data loading for region '{region}': {e}")
+        return pd.DataFrame(columns=EMPTY_DF_COLUMNS)
 
 
 def load_data(mtime: float, cache, region: str) -> pd.DataFrame:
     """
-    Load and preprocess the WoW token price data for a specific region from
-    the SQLite database, utilizing a cache.
+    Loads and returns WoW token price data for a specific region, using the
+    cache to avoid redundant database queries.
 
-    The 'mtime' parameter forces cache invalidation when the underlying database file changes.
+    Cache invalidation is driven by 'mtime': when the database file changes,
+    the key changes and a fresh query is made.
 
-    Parameters
-    ----------
-    mtime : float
-        Modification time of the database file used as the cache key.
-    cache : dash.caching.Cache
-        The Dash application's cache object.
-    region: str
-        The region for which the data is being loaded.
+    Args:
+        mtime: Modification time of the database file, used as part of the cache key.
+        cache: The Flask-Caching instance.
+        region: The region identifier.
 
-    Returns
-    -------
-    pandas.DataFrame
-        A sorted DataFrame containing 'datetime', 'price_gold', and
-        derived metrics.
+    Returns:
+        A DataFrame containing price data for the given region.
     """
+    cache_key = f"token_data_{region}_{mtime}"
+    cached_df = cache.get(cache_key)
 
-    # Decorator to cache the result of the function call based on its arguments.
-    # If the DB file changes, 'mtime' changes, and the cache is invalidated.
-    @cache.memoize(timeout=60 * CACHE_TIMEOUT_MINUTES)
-    def cached_load(mtime, region):
-        # Check if the database file exists before attempting connection.
-        if not DB_PATH.exists():
-            # Return an empty DataFrame with expected columns if the DB is missing
-            return pd.DataFrame(
-                columns=[
-                    "datetime",
-                    "price_gold",
-                    "ema",
-                    "price_change_abs",
-                    "price_change_pct",
-                ]
-            )
+    if cached_df is not None:
+        return cached_df
 
-        try:
-            # Connect to the SQLite database
-            with get_db_connection() as conn:
-                # Select all required columns for the specific region, ordered by time
-                sql_query = "SELECT datetime, price_gold, ema, price_change_abs, price_change_pct FROM token_prices WHERE region = ? ORDER BY datetime ASC"
-                df = pd.read_sql_query(sql_query, conn, params=(region,))
-
-            if df.empty:
-                return df
-
-            # Convert the 'datetime' column to the proper pandas datetime type
-            df["datetime"] = pd.to_datetime(df["datetime"])
-
-            return df
-
-        except sqlite3.Error as e:
-            # Handle potential SQLite errors during connection or query execution
-            print(f"SQLite Error during data loading: {e}")
-            # Return an empty DataFrame with the expected columns in case of error
-            return pd.DataFrame()
-
-    # Call the decorated function with the modification time to trigger caching
-    return cached_load(mtime, region)
+    df = _load_from_db(region=region)
+    cache.set(cache_key, df, timeout=60 * CACHE_TIMEOUT_MINUTES)
+    return df
