@@ -1,8 +1,8 @@
 import logging
 import time
 import json
+import os
 from pathlib import Path
-
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -86,6 +86,7 @@ class BlizzardAPIClient:
         }
         with open(self.token_cache_file, "w") as f:
             json.dump(data, f)
+        os.chmod(self.token_cache_file, 0o600)
         self._access_token = token
 
     def get_access_token(self) -> str:
@@ -96,6 +97,8 @@ class BlizzardAPIClient:
         Raises:
             requests.exceptions.RequestException: On network or API errors.
         """
+        if self._access_token:
+            return self._access_token
         cached = self._load_token_cache()
         if cached:
             return cached

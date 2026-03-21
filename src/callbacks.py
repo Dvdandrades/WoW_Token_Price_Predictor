@@ -40,7 +40,7 @@ def _format_price_change_indicators(
         latest_abs_change: Absolute price change in gold.
         latest_pct_change: Percentage price change.
     """
-    if pd.isna(latest_abs_change) or latest_abs_change is None:
+    if pd.isna(latest_abs_change):
         return html.Span("Change: N/A", style={"color": "gray"})
 
     is_positive = latest_abs_change >= 0

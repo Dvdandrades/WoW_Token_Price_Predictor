@@ -1,10 +1,10 @@
 import plotly.graph_objects as go
 import pandas as pd
 
-from config import settings
+from config import COLOR_DECREASE, COLOR_INCREASE
 
 
-def create_token_line_plot(df: pd.DataFrame) -> go.Figure:
+def create_token_line_plot(df: pd.DataFrame, ema_span_days: int = 7) -> go.Figure:
     """
     Build a dual-line Plotly chart showing the actual WoW Token price and
     its Exponential Moving Average for the provided (pre-filtered) data.
@@ -23,19 +23,19 @@ def create_token_line_plot(df: pd.DataFrame) -> go.Figure:
             x=df["datetime"],
             y=df["price_gold"],
             mode="lines",
-            line=dict(color="#17B897", width=2, dash="solid"),
+            line=dict(color=COLOR_INCREASE, width=2, dash="solid"),
             name="Actual Price",
             hovertemplate="Date: %{x|%Y-%m-%d %H:%M:%S}<br>Price: %{y} Gold<extra></extra>",
         )
     )
 
-    ema_label = f"EMA ({settings.ema_span_days}-day)"
+    ema_label = f"EMA ({ema_span_days}-day)"
     fig.add_trace(
         go.Scatter(
             x=df["datetime"],
             y=df["ema"],
             mode="lines",
-            line=dict(color="#FF6347", width=2, dash="dash"),
+            line=dict(color=COLOR_DECREASE, width=2, dash="dash"),
             name=ema_label,
             hovertemplate=(
                 f"Date: %{{x|%Y-%m-%d %H:%M:%S}}<br>EMA: %{{y}} Gold"

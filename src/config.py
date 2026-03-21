@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from pathlib import Path
+from functools import lru_cache
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -23,7 +24,9 @@ class Settings(BaseSettings):
     model_config = {"env_file": PROJECT_ROOT / ".env"}
 
 
-settings = Settings()
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
 
 
 # File Paths
@@ -47,6 +50,7 @@ COLOR_DECREASE: str = "#FF6347"
 
 # Dropdown Options
 DAYS_OPTIONS: list[dict] = [
+    {"label": "Complete history", "value": 0},
     {"label": "3 Days", "value": 3},
     {"label": "7 Days", "value": 7},
     {"label": "14 Days", "value": 14},
@@ -60,4 +64,5 @@ REGION_OPTIONS: list[dict] = [
     {"label": "Taiwan (TW)", "value": "tw"},
 ]
 
-DEFAULT_REGION: str = settings.region
+DEFAULT_REGION: str = get_settings().region
+VALID_REGIONS: frozenset[str] = frozenset(opt["value"] for opt in REGION_OPTIONS)

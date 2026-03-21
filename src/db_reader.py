@@ -4,7 +4,7 @@ import sqlite3
 import time
 import pandas as pd
 
-from config import DB_PATH, EMPTY_DF_COLUMNS, settings
+from config import DB_PATH, EMPTY_DF_COLUMNS, get_settings
 from db_writer import get_db_connection
 
 logger = logging.getLogger(__name__)
@@ -91,5 +91,5 @@ def load_data(mtime: float, cache, region: str) -> pd.DataFrame:
 
     logger.debug("Cache miss - loading from DB for region '%s'.", region)
     df = _load_from_db(region=region)
-    cache.set(cache_key, df, timeout=60 * settings.cache_timeout_minutes)
+    cache.set(cache_key, df, timeout=60 * get_settings().cache_timeout_minutes)
     return df

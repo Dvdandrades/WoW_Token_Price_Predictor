@@ -1,3 +1,4 @@
+import sqlite3
 from flask import jsonify
 from dash import Dash
 from flask_caching import Cache
@@ -39,10 +40,24 @@ def health():
     Returns HTTP 200 when the application is running and the database
     file is accessible; HTTP 503 otherwise.
     """
-    db_ok = DB_PATH.exists()
-    payload = {"status": "ok" if db_ok else "degraded", "db_exists": db_ok}
-    status_code = 200 if db_ok else 503
-    return jsonify(payload), status_code
+    db_ok = False
+    error = None
+    if DB_PATH.exists():
+        try:
+            with sqlite3.connect(DB_PATH, timeout=2.0) as conn:
+                conn.execute("SELECT 1")
+            db_ok = True
+        except sqlite3.Error as exc:
+            error = str(exc)
+
+    payload = {
+        "status": "ok" if db_ok else "degraded",
+        "db_exists": DB_PATH.exists(),
+        "db_readable": db_ok,
+    }
+    if error:
+        payload["error"] = error
+    return jsonify(payload), 200 if db_ok else 503
 
 
 if __name__ == "__main__":

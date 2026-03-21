@@ -1,14 +1,13 @@
 import logging
+import sqlite3
+
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from sqlite3 import Connection, Cursor
-from typing import Generator, Optional, Tuple
-import sqlite3
+from typing import Generator
 
-from config import DB_PATH, COPPER_PER_GOLD, settings
+from config import DB_PATH, COPPER_PER_GOLD, get_settings, VALID_REGIONS
 
-# Ensure the data directory exists before any DB operation.
-DB_PATH.parent.mkdir(exist_ok=True)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +40,8 @@ def initialize_db() -> None:
 
     Safe to call on every startup — all operations are idempotent.
     """
+    # Ensure the data directory exists before any DB operation.
+    DB_PATH.parent.mkdir(exist_ok=True)
     with get_db_connection() as conn:
         cursor = conn.cursor()
 
@@ -75,13 +76,10 @@ def initialize_db() -> None:
             "CREATE INDEX IF NOT EXISTS idx_region_date ON token_prices(region, datetime)"
         )
 
-        conn.commit()
     logger.info("Database initialised at %s.", DB_PATH)
 
 
-def _get_last_record(
-    cursor: Cursor, region: str
-) -> Optional[Tuple[int, Optional[float]]]:
+def _get_last_record(cursor: Cursor, region: str) -> tuple[int, float | None] | None:
     """Return the most recent (price_gold, ema) for *region*, or None."""
     cursor.execute(
         """
@@ -108,6 +106,9 @@ def save_price(price_copper: int, region: str) -> None:
         price_copper: Raw copper value from the Blizzard API.
         region: Region identifier (e.g. "eu", "us").
     """
+    if region not in VALID_REGIONS:
+        logger.error("save_price called with unknown region '%s'. Aborting.", region)
+        return
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
@@ -123,7 +124,7 @@ def save_price(price_copper: int, region: str) -> None:
                 change_pct = (change_abs / last_price) * 100
 
                 prev_ema = last_ema if last_ema is not None else float(last_price)
-                alpha = 2.0 / (settings.ema_span_days + 1)
+                alpha = 2.0 / (get_settings().ema_span_days + 1)
                 current_ema = (current_gold * alpha) + (prev_ema * (1.0 - alpha))
             else:
                 change_abs = 0
@@ -145,7 +146,6 @@ def save_price(price_copper: int, region: str) -> None:
                     change_pct,
                 ),
             )
-            conn.commit()
 
-    except Exception:
+    except (sqlite3.Error, ValueError):
         logger.exception("Failed to save price for region '%s'.", region)
