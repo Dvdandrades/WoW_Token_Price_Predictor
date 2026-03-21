@@ -1,45 +1,62 @@
-import time
-import schedule
-import requests
 import logging
+import signal
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
+import schedule
+
 from api_client import BlizzardAPIClient
-from data_manager import save_price, initialize_db
-from config import CLIENT_ID, CLIENT_SECRET, REGION_OPTIONS, LOCALE, TOKEN_CACHE_FILE
+from config import LOCALE, REGION_OPTIONS, TOKEN_CACHE_FILE, settings
+from db_writer import initialize_db, save_price
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logger = logging.getLogger(__name__)
+
+# Shutdown coordination
+_shutdown_event = threading.Event()
 
 
+def _handle_signal(signum: int, _frame) -> None:
+    logger.info("Shutdown signal (%s) received - stopping worker.", signum)
+    _shutdown_event.set()
+
+
+signal.signal(signal.SIGTERM, _handle_signal)
+signal.signal(signal.SIGINT, _handle_signal)
+
+
+# Collection logic
 def run_collection_job(api_client: BlizzardAPIClient) -> None:
     """
-    Fetches the WoW token price for a specific region and persists it.
- 
+    Fetch and persist the WoW Token price for a single region.
+
     Args:
         api_client: A BlizzardAPIClient configured for the target region.
     """
     region = api_client.region
-    logging.info(f"Starting price collection for region: {region}")
+    logger.info("Starting price collection for region: %s", region)
 
     try:
         price = api_client.fetch_wow_token_price()
         save_price(price, region)
-        logging.info(f"Price saved for {region}: {price} copper.")
-    except requests.exceptions.RequestException as e:
-        logging.error(f"API error for {region}: {e}")
-    except Exception as e:
-        logging.error(f"Unexpected error for {region}: {e}")
+        logger.info("Price saved for %s: %d copper.", region, price)
+    except requests.exceptions.RequestException:
+        logger.exception("API error for region '%s'.", region)
+    except Exception:
+        logger.exception("Unexpected error for region '%s'.", region)
 
 
 def run_all_regions(api_clients: dict[str, BlizzardAPIClient]) -> None:
     """
-    Runs the collection job for all regions in parallel using a thread pool.
- 
+    Execute the collection job for all regions in parallel.
+
     Args:
-        api_clients: A mapping of region identifier to its API client.
+        api_clients: Mapping of region identifier → API client.
     """
     with ThreadPoolExecutor(max_workers=len(api_clients)) as executor:
         futures = {
@@ -50,58 +67,70 @@ def run_all_regions(api_clients: dict[str, BlizzardAPIClient]) -> None:
             region = futures[future]
             exc = future.exception()
             if exc:
-                logging.error(f"Unhandled exception in thread for {region}: {exc}")
+                logger.error("Unhandled exception in thread for '%s': %s", region, exc)
 
 
+# Initialisation helpers
 def _build_api_clients() -> dict[str, BlizzardAPIClient]:
     """
-    Initializes a BlizzardAPIClient for each configured region.
- 
+    Instantiate one BlizzardAPIClient per configured region.
+
+    Regions that fail to initialise (e.g. missing credentials) are skipped
+    and logged rather than aborting the entire worker.
+
     Returns:
-        A dict mapping region identifiers to their respective API clients.
-        Regions that fail to initialize are skipped with an error log.
+        Dict mapping region value to its client instance.
     """
-    clients = {}
+    clients: dict[str, BlizzardAPIClient] = {}
     for region_option in REGION_OPTIONS:
         region = region_option["value"]
         try:
             clients[region] = BlizzardAPIClient(
-                CLIENT_ID, CLIENT_SECRET, region, LOCALE, TOKEN_CACHE_FILE
+                settings.client_id,
+                settings.client_secret,
+                region,
+                LOCALE,
+                TOKEN_CACHE_FILE,
             )
-            logging.info(f"Client initialized for region: {region}")
-        except ValueError as e:
-            logging.error(f"Failed to initialize client for {region}: {e}")
-    return clients
-    
+            logger.info("API client initialised for region: %s", region)
+        except ValueError:
+            logger.exception("Failed to initialise client for region '%s'.", region)
 
-def start_worker():
+    return clients
+
+
+# Entry point
+def start_worker() -> None:
     """
-    Entry point for the worker process.
- 
-    Initializes the database, builds API clients, runs an immediate collection
-    pass for all regions in parallel, then schedules periodic runs.
+    Initialise the database, build clients, run an immediate collection pass,
+    schedule periodic runs, then block until a shutdown signal is received.
     """
     initialize_db()
-    logging.info("Database initialized.")
 
     api_clients = _build_api_clients()
     if not api_clients:
-        logging.critical("No API clients could be initialized. Exiting.")
+        logger.critical("No API clients could be initialised. Exiting.")
         return
 
-    # Immediate collection pass on startup
+    # Immediate pass on startup so the dashboard has data straight away.
     run_all_regions(api_clients)
 
-    # Schedule the parallel job every 20 minutes
-    schedule.every(20).minutes.do(run_all_regions, api_clients=api_clients)
-    logging.info("Scheduler started. Waiting for tasks...")
+    interval = settings.worker_interval_minutes
+    schedule.every(interval).minutes.do(run_all_regions, api_clients=api_clients)
+    logger.info(
+        "Scheduler started — collecting every %d minutes. "
+        "Send SIGTERM or SIGINT to stop.",
+        interval,
+    )
 
-    while True:
+    while not _shutdown_event.is_set():
         try:
             schedule.run_pending()
-        except Exception as e:
-            logging.critical(f"Scheduler error: {e}")
-        time.sleep(1)
+        except Exception:
+            logger.exception("Scheduler error.")
+        _shutdown_event.wait(timeout=1)
+
+    logger.info("Worker stopped cleanly.")
 
 
 if __name__ == "__main__":

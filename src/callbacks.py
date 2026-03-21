@@ -1,21 +1,23 @@
-from dash import Input, Output, html
+import logging
 import pandas as pd
-from data_handler import get_db_mtime, load_data
+from dash import Input, Output, html
+
+from config import COLOR_DECREASE, COLOR_INCREASE
+from db_reader import get_db_mtime, load_data
 from figures import create_token_line_plot
-from config import COLOR_INCREASE, COLOR_DECREASE
+
+logger = logging.getLogger(__name__)
 
 
 def _filter_dataframe_by_days(df: pd.DataFrame, days_filter: int) -> pd.DataFrame:
     """
-    Filters the DataFrame to include only rows within the last 'days_filter' days
-    relative to the most recent timestamp in the data.
- 
+    Return rows within the last *days_filter* days relative to the latest
+    timestamp in the data.  Returns *df* unchanged when *days_filter* is 0
+    or the frame is empty.
+
     Args:
-        df: Input DataFrame containing a 'datetime' column.
+        df: DataFrame with a 'datetime' column.
         days_filter: Number of days to look back. 0 means no filter.
- 
-    Returns:
-        The filtered DataFrame.
     """
     if days_filter == 0 or df.empty:
         return df
@@ -31,14 +33,12 @@ def _format_price_change_indicators(
     latest_abs_change: float, latest_pct_change: float
 ) -> list[html.Span] | html.Span:
     """
-    Formats absolute and percentage price change into colored HTML Span elements.
- 
+    Return a list of styled Span elements showing the absolute and percentage
+    price change, or a single grey 'N/A' Span when the change is unavailable.
+
     Args:
-        latest_abs_change: Latest absolute price change.
-        latest_pct_change: Latest percentage price change.
- 
-    Returns:
-        A list of html.Span objects, or a single gray 'N/A' Span.
+        latest_abs_change: Absolute price change in gold.
+        latest_pct_change: Percentage price change.
     """
     if pd.isna(latest_abs_change) or latest_abs_change is None:
         return html.Span("Change: N/A", style={"color": "gray"})
@@ -61,11 +61,11 @@ def _format_price_change_indicators(
 
 def register_callbacks(app, cache) -> None:
     """
-    Registers all application callbacks with the Dash app instance.
- 
+    Register all Dash callbacks with *app*, injecting *cache* via closure.
+
     Args:
-        app: The main Dash application instance.
-        cache: The Flask-Caching instance.
+        app: Dash application instance.
+        cache: Flask-Caching instance.
     """
 
     @app.callback(
@@ -127,7 +127,6 @@ def register_callbacks(app, cache) -> None:
             last_row.get("price_change_abs"), last_row.get("price_change_pct")
         )
 
-        # Single filter call — result reused for avg/min/max
         df_filtered = _filter_dataframe_by_days(df, days_filter)
 
         if df_filtered.empty:

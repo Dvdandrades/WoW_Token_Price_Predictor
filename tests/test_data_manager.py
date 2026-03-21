@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from src.data_manager import save_price
+from db_writer import save_price
+
 
 @patch("src.data_manager.get_db_connection")
 def test_ema_calculation_logic(mock_get_conn):
-
     mock_conn = MagicMock()
     mock_cursor = mock_conn.cursor.return_value
     mock_get_conn.return_value.__enter__.return_value = mock_conn

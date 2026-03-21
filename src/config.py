@@ -1,32 +1,39 @@
+from pydantic_settings import BaseSettings
+from pydantic import Field
 from pathlib import Path
-from dotenv import load_dotenv
-import os
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")
 
-# API Credentials
-CLIENT_ID: str = os.getenv("CLIENT_ID", "")
-CLIENT_SECRET: str = os.getenv("CLIENT_SECRET", "")
 
-# Fail fast: raise at import time so misconfiguration is obvious immediately, rather than surfacing as a cryptic error during the first API call.
-if not CLIENT_ID or not CLIENT_SECRET:
-    raise EnvironmentError(
-        "Missing required environment variables: CLIENT_ID and CLIENT_SECRET. Must be set in your .env file."
-    )
+class Settings(BaseSettings):
+    """
+    Application settings loaded from environment variables or a .env file.
+    All values that may differ between environments live here.
+    Structural constants (colours, column lists, UI options) remain as module-level
+    literals below — they are not environment-dependent.
+    """
 
-DEFAULT_REGION: str = os.getenv("REGION", "eu")
-LOCALE: str = "en_US"
+    client_id: str = Field(..., validation_alias="CLIENT_ID")
+    client_secret: str = Field(..., validation_alias="CLIENT_SECRET")
+    region: str = Field("eu", validation_alias="REGION")
+    ema_span_days: int = Field(7, validation_alias="EMA_SPAN_DAYS")
+    cache_timeout_minutes: int = Field(19, validation_alias="CACHE_TIMEOUT_MINUTES")
+    worker_interval_minutes: int = Field(20, validation_alias="WORKER_INTERVAL_MINUTES")
+
+    model_config = {"env_file": PROJECT_ROOT / ".env"}
+
+
+settings = Settings()
+
 
 # File Paths
 TOKEN_CACHE_FILE: Path = PROJECT_ROOT / "data" / "token_cache.json"
 DB_PATH: Path = PROJECT_ROOT / "data" / "wow_token_prices.db"
 
 # Constants
-COPPER_PER_GOLD: int = 10000
-CACHE_TIMEOUT_MINUTES: int = 19
-EMA_SPAN_DAYS: int = 7
-EMPTY_DF_COLUMNS = [
+COPPER_PER_GOLD: int = 10_000
+LOCALE: str = "en_US"
+EMPTY_DF_COLUMNS: list[str] = [
     "datetime",
     "price_gold",
     "ema",
@@ -52,3 +59,5 @@ REGION_OPTIONS: list[dict] = [
     {"label": "Korea (KR)", "value": "kr"},
     {"label": "Taiwan (TW)", "value": "tw"},
 ]
+
+DEFAULT_REGION: str = settings.region

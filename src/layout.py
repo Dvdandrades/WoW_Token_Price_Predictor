@@ -1,21 +1,23 @@
 from dash import dcc, html
-from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, REGION_OPTIONS, DEFAULT_REGION
+
+from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, DEFAULT_REGION, REGION_OPTIONS
 
 
 def create_layout() -> html.Div:
     """
-    Defines the overall layout of the Dash application, including the header,
-    statistics cards, controls, and the main graph.
+    Build and return the root Div that forms the entire dashboard.
 
-    Returns:
-        The root html.Div element containing the entire dashboard structure.
+    Structure:
+        - Header: title, subtitle, last-updated timestamp.
+        - Stats cards: current price, average, high, low.
+        - Controls: days filter + region selector dropdowns.
+        - Graph: Plotly line chart with auto-refresh interval.
     """
     return html.Div(
         children=[
-            # Header Section (Title and Description)
+            # Header
             html.Div(
                 children=[
-                    # dcc.Store component to hold and share the loaded DataFrame data
                     dcc.Store(id="token-data-store", storage_type="memory"),
                     html.H1(
                         children="World Of Warcraft Token Price",
@@ -28,7 +30,6 @@ def create_layout() -> html.Div:
                         ),
                         className="header-description",
                     ),
-                    # Component to display the time of the last database update
                     html.P(
                         id="last-updated-time",
                         className="header-description",
@@ -41,20 +42,18 @@ def create_layout() -> html.Div:
                 ],
                 className="header",
             ),
-            # Statistics Card Container
+            # Statistics Card
             html.Div(
                 children=[
-                    # Current Price Card
+                    # Current Price
                     html.Div(
                         children=[
                             html.H3(children="Current Price", className="card-title"),
-                            # Value of the current price
                             html.P(
                                 id="current-price-value",
                                 children="N/A",
                                 className="card-value",
                             ),
-                            # Absolute and percentage price change indicators
                             html.P(
                                 id="price_change_indicators",
                                 children="N/A",
@@ -63,10 +62,10 @@ def create_layout() -> html.Div:
                         ],
                         className="stat-card",
                     ),
-                    # Average Price Card
+                    # Average Price
                     html.Div(
                         children=[
-                            html.H3(children=("Average Price"), className="card-title"),
+                            html.H3(children="Average Price", className="card-title"),
                             html.P(
                                 id="average-price-value",
                                 children="N/A",
@@ -79,10 +78,10 @@ def create_layout() -> html.Div:
                         ],
                         className="stat-card",
                     ),
-                    # Highest Price Card
+                    # Highest Price
                     html.Div(
                         children=[
-                            html.H3(children=("Highest Price"), className="card-title"),
+                            html.H3(children="Highest Price", className="card-title"),
                             html.P(
                                 id="highest-price-value",
                                 children="N/A",
@@ -95,7 +94,7 @@ def create_layout() -> html.Div:
                         ],
                         className="stat-card",
                     ),
-                    # Lowest Price Card
+                    # Lowest Price
                     html.Div(
                         children=[
                             html.H3(children=("Lowest Price"), className="card-title"),
@@ -114,10 +113,9 @@ def create_layout() -> html.Div:
                 ],
                 className="stats-container",
             ),
-            # Menu Section
+            # Controls
             html.Div(
                 children=[
-                    # Days Filter Dropdown
                     html.Div(
                         children=[
                             html.Div(children="Filter by Days", className="menu-title"),
@@ -130,7 +128,6 @@ def create_layout() -> html.Div:
                             ),
                         ],
                     ),
-                    # Region Selection Dropdown
                     html.Div(
                         children=[
                             html.Div(
@@ -148,21 +145,20 @@ def create_layout() -> html.Div:
                 ],
                 className="menu",
             ),
-            # Visualization Section
+            # Graph
             html.Div(
                 children=[
-                    # Line Chart Card
                     html.Div(
                         children=dcc.Graph(
                             id="token-line-plot",
-                            # Disable the default Plotly mode bar
                             config={"displayModeBar": False},
                         ),
                         className="card",
                     ),
-                    # Auto-refresh interval to trigger data update
                     dcc.Interval(
-                        id="interval-check", interval=5 * 60 * 1000, n_intervals=0
+                        id="interval-check",
+                        interval=5 * 60 * 1000,  # 5 minutes in ms
+                        n_intervals=0,
                     ),
                 ],
                 className="wrapper",

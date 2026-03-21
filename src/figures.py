@@ -1,18 +1,20 @@
 import plotly.graph_objects as go
 import pandas as pd
-from config import EMA_SPAN_DAYS
+
+from config import settings
 
 
 def create_token_line_plot(df: pd.DataFrame) -> go.Figure:
     """
-    Generates a Plotly line chart with the actual WoW token price and its EMA.
- 
+    Build a dual-line Plotly chart showing the actual WoW Token price and
+    its Exponential Moving Average for the provided (pre-filtered) data.
+
     Args:
-        df: DataFrame containing 'datetime', 'price_gold', and 'ema' columns,
-            pre-filtered to the desired time range.
- 
+        df: DataFrame with 'datetime', 'price_gold', and 'ema' columns,
+            already filtered to the desired time window.
+
     Returns:
-        A configured Plotly Figure object.
+        Configured Plotly Figure object.
     """
     fig = go.Figure()
 
@@ -23,22 +25,21 @@ def create_token_line_plot(df: pd.DataFrame) -> go.Figure:
             mode="lines",
             line=dict(color="#17B897", width=2, dash="solid"),
             name="Actual Price",
-            hovertemplate=(
-                "Date: %{x|%Y-%m-%d %H:%M:%S}<br>Price: %{y} Gold<extra></extra>"
-            ),
+            hovertemplate="Date: %{x|%Y-%m-%d %H:%M:%S}<br>Price: %{y} Gold<extra></extra>",
         )
     )
 
+    ema_label = f"EMA ({settings.ema_span_days}-day)"
     fig.add_trace(
         go.Scatter(
             x=df["datetime"],
             y=df["ema"],
             mode="lines",
             line=dict(color="#FF6347", width=2, dash="dash"),
-            name=f"EMA ({EMA_SPAN_DAYS}-day)",
+            name=ema_label,
             hovertemplate=(
                 f"Date: %{{x|%Y-%m-%d %H:%M:%S}}<br>EMA: %{{y}} Gold"
-                f"<extra>{EMA_SPAN_DAYS}-Day EMA</extra>"
+                f"<extra>{ema_label}-Day EMA</extra>"
             ),
         )
     )
