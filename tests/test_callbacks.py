@@ -1,40 +1,81 @@
-import pytest
 import pandas as pd
 from dash import html
-from src.callbacks import _format_price_change_indicators, _filter_dataframe_by_days
+
+from src.callbacks import _filter_dataframe_by_days, _format_price_change_indicators
 
 
-def test_format_price_change_indicators_positive():
-    abs_change = 5000
-    pct_change = 2.5
+# _filter_dataframe_by_days
+class TestFilterDataframeByDays:
+    def test_returns_full_df_when_days_filter_is_zero(self, sample_df):
+        result = _filter_dataframe_by_days(sample_df, 0)
+        assert len(result) == len(sample_df)
 
-    result = _format_price_change_indicators(abs_change, pct_change)
+    def test_returns_full_df_when_empty(self):
+        empty = pd.DataFrame(columns=["datetime", "price_gold"])
+        result = _filter_dataframe_by_days(empty, 3)
+        assert result.empty
 
-    assert "+" in result[1].children
-    assert "2.50%" in result[1].children
-    assert result[1].style["color"] == "#17B897"
+    def test_filters_to_last_n_days(self, sample_df):
+        # sample_df spans 5 intervals of 20 min — well within 1 day
+        result = _filter_dataframe_by_days(sample_df, 1)
+        assert not result.empty
+        assert len(result) == len(sample_df)
+
+    def test_excludes_old_rows(self):
+        df = pd.DataFrame(
+            {
+                "datetime": pd.to_datetime(["2024-01-01", "2024-01-10"]),
+                "price_gold": [100_000, 200_000],
+            }
+        )
+        result = _filter_dataframe_by_days(df, 3)
+        assert len(result) == 1
+        assert result.iloc[0]["price_gold"] == 200_000
+
+    def test_converts_string_datetime_column(self):
+        df = pd.DataFrame(
+            {
+                "datetime": ["2024-01-09 00:00:00", "2024-01-10 00:00:00"],
+                "price_gold": [100_000, 200_000],
+            }
+        )
+        result = _filter_dataframe_by_days(df, 3)
+        assert len(result) == 2
 
 
-def test_format_price_change_indicators_negative():
-    abs_change = -3000
-    pct_change = -1.5
+# _format_price_change_indicators
+class TestFormatPriceChangeIndicators:
+    def test_returns_na_span_for_nan_change(self):
+        result = _format_price_change_indicators(float("nan"), 0.0)
+        assert isinstance(result, html.Span)
+        assert "N/A" in result.children
 
-    result = _format_price_change_indicators(abs_change, pct_change)
+    def test_returns_na_span_for_none_change(self):
+        result = _format_price_change_indicators(None, 0.0)
+        assert isinstance(result, html.Span)
 
-    assert "-" in result[1].children
-    assert "-1.50%" in result[1].children
-    assert result[1].style["color"] == "#FF6347"
+    def test_positive_change_uses_increase_color(self):
+        spans = _format_price_change_indicators(1_000, 0.5)
+        assert isinstance(spans, list)
+        assert "#17B897" in spans[0].style["color"]
 
+    def test_negative_change_uses_decrease_color(self):
+        spans = _format_price_change_indicators(-1_000, -0.5)
+        assert "#FF6347" in spans[0].style["color"]
 
-def test_filter_dataframe_by_days():
-    df = pd.DataFrame(
-        {
-            "datetime": pd.to_datetime(["2023-01-01", "2023-01-05", "2023-01-10"]),
-            "price_gold": [100, 110, 120],
-        }
-    )
+    def test_zero_change_treated_as_positive(self):
+        spans = _format_price_change_indicators(0, 0.0)
+        assert "#17B897" in spans[0].style["color"]
 
-    filtered_df = _filter_dataframe_by_days(df, 7)
+    def test_positive_change_has_plus_sign(self):
+        spans = _format_price_change_indicators(500, 0.2)
+        assert "+" in spans[0].children
 
-    assert len(filtered_df) == 2
-    assert "2023-01-01" not in filtered_df["datetime"].values.astype(str)
+    def test_negative_change_has_no_plus_sign(self):
+        spans = _format_price_change_indicators(-500, -0.2)
+        assert "+" not in spans[0].children
+
+    def test_pct_formatted_to_two_decimals(self):
+        spans = _format_price_change_indicators(1_000, 0.333333)
+        pct_text = spans[1].children
+        assert "0.33" in pct_text
