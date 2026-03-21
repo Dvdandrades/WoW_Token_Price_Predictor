@@ -75,7 +75,14 @@ def test_load_from_db_filters_by_region(tmp_path):
     conn.close()
 
     _orig_connect = sqlite3.connect
-    with patch.object(src.db_reader, "DB_PATH", db), patch.object(sqlite3, "connect", side_effect=lambda *_args, **kw: _orig_connect(str(db), **kw)):
+    with (
+        patch.object(src.db_reader, "DB_PATH", db),
+        patch.object(
+            sqlite3,
+            "connect",
+            side_effect=lambda *_args, **kw: _orig_connect(str(db), **kw),
+        ),
+    ):
         df_eu = src.db_reader._load_from_db("eu")
         df_us = src.db_reader._load_from_db("us")
 
@@ -84,7 +91,7 @@ def test_load_from_db_filters_by_region(tmp_path):
 
 
 # load_data — cache behaviour
-def test_load_data_cache_miss_calls_db(mock_cache, sample_df, tmp_path):
+def test_load_data_cache_miss_calls_db(mock_cache, tmp_path):
     missing = tmp_path / "no.db"
     with patch.object(src.db_reader, "DB_PATH", missing):
         df = src.db_reader.load_data(mtime=1.0, cache=mock_cache, region="eu")
@@ -96,7 +103,7 @@ def test_load_data_cache_miss_calls_db(mock_cache, sample_df, tmp_path):
 def test_load_data_cache_hit_skips_db(mock_cache, sample_df):
     mock_cache.get.side_effect = lambda key: sample_df
 
-    with patch("db_reader._load_from_db") as mock_load:
+    with patch("src.db_reader._load_from_db") as mock_load:
         df = src.db_reader.load_data(mtime=1.0, cache=mock_cache, region="eu")
 
     mock_load.assert_not_called()

@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from unittest.mock import patch
 import pytest
 import src.db_writer
+from src.config import COPPER_PER_GOLD
 from src.db_writer import _get_last_record, save_price
 
 
@@ -66,7 +67,7 @@ def test_get_last_record_returns_most_recent_row():
 def test_save_price_first_record_initialises_change_to_zero():
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")
+        save_price(300_000 * COPPER_PER_GOLD, "eu")
 
     row = conn.execute(
         "SELECT price_gold, price_change_abs, price_change_pct FROM token_prices"
@@ -79,7 +80,7 @@ def test_save_price_first_record_initialises_change_to_zero():
 def test_save_price_first_record_ema_equals_price():
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")
+        save_price(300_000 * COPPER_PER_GOLD, "eu")
 
     row = conn.execute("SELECT price_gold, ema FROM token_prices").fetchone()
     assert row[1] == pytest.approx(row[0])
@@ -89,8 +90,8 @@ def test_save_price_first_record_ema_equals_price():
 def test_save_price_calculates_positive_change():
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")  # 300_000 gold
-        save_price(3_010_000_000, "eu")  # 301_000 gold
+        save_price(300_000 * COPPER_PER_GOLD, "eu")  # 300_000 gold
+        save_price(301_000 * COPPER_PER_GOLD, "eu")  # 301_000 gold
 
     rows = conn.execute(
         "SELECT price_gold, price_change_abs, price_change_pct FROM token_prices ORDER BY id"
@@ -102,8 +103,8 @@ def test_save_price_calculates_positive_change():
 def test_save_price_calculates_negative_change():
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")
-        save_price(2_990_000_000, "eu")  # price drops
+        save_price(300_000 * COPPER_PER_GOLD, "eu")
+        save_price(299_000 * COPPER_PER_GOLD, "eu")  # price drops
 
     rows = conn.execute(
         "SELECT price_change_abs FROM token_prices ORDER BY id"
@@ -115,8 +116,8 @@ def test_save_price_ema_is_stored_as_float():
     """EMA must be stored as REAL (not truncated to int)."""
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")
-        save_price(3_010_000_000, "eu")
+        save_price(300_000 * COPPER_PER_GOLD, "eu")
+        save_price(301_000 * COPPER_PER_GOLD, "eu")
 
     ema = conn.execute(
         "SELECT ema FROM token_prices ORDER BY id DESC LIMIT 1"
@@ -130,7 +131,7 @@ def test_save_price_does_not_raise_on_db_error(caplog):
     with patch.object(
         src.db_writer, "get_db_connection", side_effect=sqlite3.Error("boom")
     ):
-        save_price(1_000_000, "eu")  # must not raise
+        save_price(100_000 * COPPER_PER_GOLD, "eu")  # must not raise
 
     assert any("Failed to save" in r.message for r in caplog.records)
 
@@ -139,8 +140,8 @@ def test_save_price_does_not_raise_on_db_error(caplog):
 def test_save_price_stores_correct_region():
     conn = _in_memory_conn()
     with _patch_connection(conn):
-        save_price(3_000_000_000, "eu")
-        save_price(3_000_000_000, "us")
+        save_price(300_000 * COPPER_PER_GOLD, "eu")
+        save_price(300_000 * COPPER_PER_GOLD, "us")
 
     regions = {
         row[0] for row in conn.execute("SELECT region FROM token_prices").fetchall()
