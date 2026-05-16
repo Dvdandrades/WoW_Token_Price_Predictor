@@ -106,6 +106,7 @@ def save_price(price_copper: int, region: str) -> None:
         price_copper: Raw copper value from the Blizzard API.
         region: Region identifier (e.g. "eu", "us").
     """
+
     if region not in VALID_REGIONS:
         logger.error("save_price called with unknown region '%s'. Aborting.", region)
         return
@@ -116,9 +117,24 @@ def save_price(price_copper: int, region: str) -> None:
             now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             current_gold = price_copper // COPPER_PER_GOLD
 
+            MIN_GAP_MINUTES = get_settings().worker_interval_minutes // 2
             last_record = _get_last_record(cursor, region)
 
             if last_record:
+                cursor.execute(
+                    "SELECT MAX(datetime) FROM token_prices WHERE region=?", (region,)
+                )
+                last_dt_str = cursor.fetchone()[0]
+                if last_dt_str:
+                    last_dt = datetime.fromisoformat(last_dt_str).replace(
+                        tzinfo=timezone.utc
+                    )
+                    if (
+                        datetime.now(timezone.utc) - last_dt
+                    ).seconds < MIN_GAP_MINUTES * 60:
+                        logger.info("Too soon for %s, skipping.", region)
+                        return
+
                 last_price, last_ema = last_record
                 change_abs = current_gold - last_price
                 change_pct = (change_abs / last_price) * 100

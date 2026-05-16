@@ -47,6 +47,7 @@ class BlizzardAPIClient:
         self.api_base_url: str = f"https://{region}.api.blizzard.com"
         self.namespace: str = f"dynamic-{region}"
         self._access_token: str | None = None
+        self._token_expiry: float = 0.0
 
         retry_strategy = Retry(
             total=3,
@@ -87,6 +88,7 @@ class BlizzardAPIClient:
         with open(self.token_cache_file, "w") as f:
             json.dump(data, f)
         os.chmod(self.token_cache_file, 0o600)
+        self._token_expiry = time.time() + expires_in
         self._access_token = token
 
     def get_access_token(self) -> str:
@@ -97,7 +99,7 @@ class BlizzardAPIClient:
         Raises:
             requests.exceptions.RequestException: On network or API errors.
         """
-        if self._access_token:
+        if self._access_token and time.time() < self._token_expiry:
             return self._access_token
         cached = self._load_token_cache()
         if cached:

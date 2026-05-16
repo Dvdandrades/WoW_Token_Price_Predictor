@@ -1,6 +1,8 @@
 import sqlite3
 from contextlib import contextmanager
-from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
 import pytest
 import src.db_writer
 from src.config import COPPER_PER_GOLD
@@ -37,6 +39,28 @@ def _patch_connection(conn):
 
     with patch.object(src.db_writer, "get_db_connection", _fake_conn):
         yield
+
+
+def _make_datetime_mock(*offsets_minutes: int):
+    """
+    Return a mock for src.db_writer.datetime whose .now() cycles through UTC
+    datetimes offset from a fixed base by each value in *offsets_minutes*.
+
+    datetime.now() is called once per save_price for now_utc, and once more
+    for the gap check when a previous record exists:
+      - 1 save  → 1 call  (no gap check on first insert)
+      - 2 saves → 3 calls (1 + 2 for the second save)
+    Pass offsets accordingly, e.g. _make_datetime_mock(0, 11, 11) for two saves
+    where the second one arrives 11 minutes later.
+    """
+    base = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    times = iter(base + timedelta(minutes=m) for m in offsets_minutes)
+
+    mock_dt = MagicMock()
+    mock_dt.now.side_effect = lambda tz=None: next(times)
+    # Keep the real fromisoformat so the gap-check parsing still works
+    mock_dt.fromisoformat = datetime.fromisoformat
+    return mock_dt
 
 
 # _get_last_record
@@ -87,9 +111,16 @@ def test_save_price_first_record_ema_equals_price():
 
 
 # save_price — subsequent record
+# datetime.now() call sequence for two consecutive saves:
+#   call 1 — first save_price:  now_utc         (offset 0 min)
+#   call 2 — second save_price: now_utc          (offset 11 min)
+#   call 3 — second save_price: gap check        (offset 11 min)
+
+
 def test_save_price_calculates_positive_change():
     conn = _in_memory_conn()
-    with _patch_connection(conn):
+    dt_mock = _make_datetime_mock(0, 11, 11)
+    with _patch_connection(conn), patch.object(src.db_writer, "datetime", dt_mock):
         save_price(300_000 * COPPER_PER_GOLD, "eu")  # 300_000 gold
         save_price(301_000 * COPPER_PER_GOLD, "eu")  # 301_000 gold
 
@@ -102,7 +133,8 @@ def test_save_price_calculates_positive_change():
 
 def test_save_price_calculates_negative_change():
     conn = _in_memory_conn()
-    with _patch_connection(conn):
+    dt_mock = _make_datetime_mock(0, 11, 11)
+    with _patch_connection(conn), patch.object(src.db_writer, "datetime", dt_mock):
         save_price(300_000 * COPPER_PER_GOLD, "eu")
         save_price(299_000 * COPPER_PER_GOLD, "eu")  # price drops
 
@@ -115,14 +147,14 @@ def test_save_price_calculates_negative_change():
 def test_save_price_ema_is_stored_as_float():
     """EMA must be stored as REAL (not truncated to int)."""
     conn = _in_memory_conn()
-    with _patch_connection(conn):
+    dt_mock = _make_datetime_mock(0, 11, 11)
+    with _patch_connection(conn), patch.object(src.db_writer, "datetime", dt_mock):
         save_price(300_000 * COPPER_PER_GOLD, "eu")
         save_price(301_000 * COPPER_PER_GOLD, "eu")
 
     ema = conn.execute(
         "SELECT ema FROM token_prices ORDER BY id DESC LIMIT 1"
     ).fetchone()[0]
-    # The value should not be an exact integer (unless by coincidence)
     assert isinstance(ema, float)
 
 

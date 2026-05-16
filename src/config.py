@@ -48,6 +48,14 @@ EMPTY_DF_COLUMNS: list[str] = [
 COLOR_INCREASE: str = "#17B897"
 COLOR_DECREASE: str = "#FF6347"
 
+# Multi-region comparison colors
+REGION_COLORS: dict[str, str] = {
+    "eu": "#4C8BF5",
+    "us": "#F5A623",
+    "kr": "#E91E8C",
+    "tw": "#7ED321",
+}
+
 # Dropdown Options
 DAYS_OPTIONS: list[dict] = [
     {"label": "Complete history", "value": 0},
@@ -66,3 +74,18 @@ REGION_OPTIONS: list[dict] = [
 
 DEFAULT_REGION: str = get_settings().region
 VALID_REGIONS: frozenset[str] = frozenset(opt["value"] for opt in REGION_OPTIONS)
+
+# Chart type identifiers
+CHART_LINE: str = "line"
+CHART_OHLC: str = "ohlc"
+CHART_HEATMAP: str = "heatmap"
+CHART_MULTIREGION: str = "multiregion"
+
+# Performance — downsample raw data to this many rows before rendering
+SAMPLING_THRESHOLD_ROWS: int = 2_000
+
+# Percentile window (days) used when computing where current price stands historically
+PERCENTILE_WINDOW_DAYS: int = 30
+
+# Minimum days of data required to show the OHLC chart meaningfully
+OHLC_MIN_DAYS: int = 7

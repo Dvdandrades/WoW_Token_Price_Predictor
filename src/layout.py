@@ -1,54 +1,122 @@
 from dash import dcc, html
 
-from config import DAYS_OPTIONS, DEFAULT_DAYS_FILTER, DEFAULT_REGION, REGION_OPTIONS
+from config import (
+    CHART_HEATMAP,
+    CHART_LINE,
+    CHART_MULTIREGION,
+    CHART_OHLC,
+    DAYS_OPTIONS,
+    DEFAULT_DAYS_FILTER,
+    DEFAULT_REGION,
+    REGION_OPTIONS,
+)
+
+
+def _stat_card(
+    title: str,
+    value_id: str,
+    unit: str | None = "gold",
+    extra_children: list | None = None,
+) -> html.Div:
+    """Helper that builds a single statistics card."""
+    body: list = [
+        html.H3(title, className="card-title"),
+        html.P(id=value_id, children="N/A", className="card-value"),
+    ]
+    if unit:
+        body.append(html.P(unit, className="card-unit"))
+    if extra_children:
+        body.extend(extra_children)
+    return html.Div(body, className="stat-card")
 
 
 def create_layout() -> html.Div:
     """
     Build and return the root Div that forms the entire dashboard.
 
-    Structure:
-        - Header: title, subtitle, last-updated timestamp.
-        - Stats cards: current price, average, high, low.
-        - Controls: days filter + region selector dropdowns.
-        - Graph: Plotly line chart with auto-refresh interval.
+    Structure
+    ---------
+    1. Persistent stores (theme, alert threshold, multi-region selection)
+    2. Header  — title · subtitle · last-updated · dark-mode toggle · worker badge
+    3. Alert banner  — conditionally visible
+    4. Stats row  — current price (with percentile) · average · high · low
+    5. Controls  — days filter · region selector · chart-type tabs
+    6. Multi-region region picker  — visible only in "Compare Regions" tab
+    7. Main chart
+    8. Intervals  — data refresh · worker-status refresh
     """
     return html.Div(
+        id="app-container",
         children=[
+            # Persistent client-side stores
+            dcc.Store(id="token-data-store", storage_type="memory"),
+            dcc.Store(id="multi-region-data-store", storage_type="memory"),
+            dcc.Store(id="theme-store", storage_type="local", data="light"),
+            # Download target for CSV export
+            dcc.Download(id="download-csv"),
             # Header
             html.Div(
+                className="header",
                 children=[
-                    dcc.Store(id="token-data-store", storage_type="memory"),
-                    html.H1(
-                        children="World Of Warcraft Token Price",
-                        className="header-title",
-                    ),
-                    html.P(
-                        children=(
-                            "An interactive dashboard for exploring "
-                            "World of Warcraft token price trends over time."
-                        ),
-                        className="header-description",
-                    ),
-                    html.P(
-                        id="last-updated-time",
-                        className="header-description",
-                        style={
-                            "fontStyle": "italic",
-                            "marginTop": "5px",
-                            "fontSize": "0.9em",
-                        },
+                    html.Div(
+                        className="header-top-row",
+                        children=[
+                            html.Div(
+                                children=[
+                                    html.H1(
+                                        "World Of Warcraft Token Price",
+                                        className="header-title",
+                                    ),
+                                    html.P(
+                                        "An interactive dashboard for exploring "
+                                        "World of Warcraft token price trends over time.",
+                                        className="header-description",
+                                    ),
+                                    html.P(
+                                        id="last-updated-time",
+                                        className="header-description header-timestamp",
+                                    ),
+                                ]
+                            ),
+                            html.Div(
+                                className="header-controls",
+                                children=[
+                                    # Worker status badge
+                                    html.Div(
+                                        className="worker-badge",
+                                        children=[
+                                            html.Span("●", id="worker-status-dot"),
+                                            html.Span(
+                                                "Checking…",
+                                                id="worker-status-text",
+                                                className="worker-status-text",
+                                            ),
+                                        ],
+                                    ),
+                                    # Dark-mode toggle
+                                    html.Button(
+                                        "🌙 Dark",
+                                        id="theme-toggle-btn",
+                                        className="theme-toggle-btn",
+                                        n_clicks=0,
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                 ],
-                className="header",
             ),
-            # Statistics Card
+            # Alert banner
+            html.Div(id="alert-banner", className="alert-banner"),
+            # Stats row
             html.Div(
+                className="stats-container",
                 children=[
-                    # Current Price
+                    # Current price card — includes price-change indicators and percentile
                     html.Div(
+                        className="stat-card stat-card--primary",
                         children=[
-                            html.H3(children="Current Price", className="card-title"),
+                            html.H3("Current Price", className="card-title"),
                             html.P(
                                 id="current-price-value",
                                 children="N/A",
@@ -59,66 +127,50 @@ def create_layout() -> html.Div:
                                 children="N/A",
                                 className="card-indicator",
                             ),
+                            html.P(
+                                id="percentile-badge",
+                                children="",
+                                className="percentile-badge",
+                            ),
                         ],
-                        className="stat-card",
                     ),
-                    # Average Price
+                    _stat_card("Average Price", "average-price-value"),
+                    _stat_card("Highest Price", "highest-price-value"),
+                    _stat_card("Lowest Price", "lowest-price-value"),
+                    # Alert threshold input — lives in a card for visual consistency
                     html.Div(
+                        className="stat-card stat-card--alert",
                         children=[
-                            html.H3(children="Average Price", className="card-title"),
+                            html.H3("Price Alert", className="card-title"),
                             html.P(
-                                id="average-price-value",
-                                children="N/A",
-                                className="card-value",
+                                "Notify when price reaches:",
+                                className="card-unit",
+                                style={"marginBottom": "8px"},
+                            ),
+                            dcc.Input(
+                                id="alert-threshold-input",
+                                type="number",
+                                placeholder="Threshold (Gold)",
+                                min=0,
+                                debounce=True,
+                                className="alert-threshold-input",
                             ),
                             html.P(
-                                children="gold",
+                                "gold",
                                 className="card-unit",
+                                style={"marginTop": "4px"},
                             ),
                         ],
-                        className="stat-card",
-                    ),
-                    # Highest Price
-                    html.Div(
-                        children=[
-                            html.H3(children="Highest Price", className="card-title"),
-                            html.P(
-                                id="highest-price-value",
-                                children="N/A",
-                                className="card-value",
-                            ),
-                            html.P(
-                                children="gold",
-                                className="card-unit",
-                            ),
-                        ],
-                        className="stat-card",
-                    ),
-                    # Lowest Price
-                    html.Div(
-                        children=[
-                            html.H3(children=("Lowest Price"), className="card-title"),
-                            html.P(
-                                id="lowest-price-value",
-                                children="N/A",
-                                className="card-value",
-                            ),
-                            html.P(
-                                children="gold",
-                                className="card-unit",
-                            ),
-                        ],
-                        className="stat-card",
                     ),
                 ],
-                className="stats-container",
             ),
             # Controls
             html.Div(
+                className="menu",
                 children=[
                     html.Div(
                         children=[
-                            html.Div(children="Filter by Days", className="menu-title"),
+                            html.Div("Filter by Days", className="menu-title"),
                             dcc.Dropdown(
                                 id="days-filter-dropdown",
                                 options=DAYS_OPTIONS,
@@ -126,13 +178,11 @@ def create_layout() -> html.Div:
                                 clearable=False,
                                 className="dash-dropdown",
                             ),
-                        ],
+                        ]
                     ),
                     html.Div(
                         children=[
-                            html.Div(
-                                children="Region Selection", className="menu-title"
-                            ),
+                            html.Div("Region", className="menu-title"),
                             dcc.Dropdown(
                                 id="region-selector-dropdown",
                                 options=REGION_OPTIONS,
@@ -140,28 +190,82 @@ def create_layout() -> html.Div:
                                 clearable=False,
                                 className="dash-dropdown",
                             ),
+                        ]
+                    ),
+                    html.Div(
+                        children=[
+                            html.Div("Chart Type", className="menu-title"),
+                            dcc.RadioItems(
+                                id="chart-type-selector",
+                                options=[
+                                    {"label": "Price & EMA", "value": CHART_LINE},
+                                    {"label": "Daily OHLC", "value": CHART_OHLC},
+                                    {"label": "Heatmap", "value": CHART_HEATMAP},
+                                    {
+                                        "label": "Compare Regions",
+                                        "value": CHART_MULTIREGION,
+                                    },
+                                ],
+                                value=CHART_LINE,
+                                className="chart-type-radio",
+                                inline=True,
+                            ),
+                        ]
+                    ),
+                ],
+            ),
+            # Multi-region picker (shown only in "Compare Regions" mode)
+            html.Div(
+                id="multi-region-picker-container",
+                className="multi-region-picker",
+                style={"display": "none"},
+                children=[
+                    html.Div("Select regions to compare:", className="menu-title"),
+                    dcc.Checklist(
+                        id="multi-region-checklist",
+                        options=REGION_OPTIONS,
+                        value=["eu", "us"],
+                        className="region-checklist",
+                        inline=True,
+                    ),
+                ],
+            ),
+            # Main chart + export button
+            html.Div(
+                className="wrapper",
+                children=[
+                    html.Div(
+                        className="chart-toolbar",
+                        children=[
+                            html.Button(
+                                "⬇ Export CSV",
+                                id="export-csv-btn",
+                                className="export-btn",
+                                n_clicks=0,
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        className="card",
+                        children=[
+                            dcc.Graph(
+                                id="token-line-plot",
+                                config={"displayModeBar": False},
+                            ),
                         ],
                     ),
                 ],
-                className="menu",
             ),
-            # Graph
-            html.Div(
-                children=[
-                    html.Div(
-                        children=dcc.Graph(
-                            id="token-line-plot",
-                            config={"displayModeBar": False},
-                        ),
-                        className="card",
-                    ),
-                    dcc.Interval(
-                        id="interval-check",
-                        interval=5 * 60 * 1000,  # 5 minutes in ms
-                        n_intervals=0,
-                    ),
-                ],
-                className="wrapper",
+            # Intervals
+            dcc.Interval(
+                id="interval-check",
+                interval=5 * 60 * 1_000,  # 5 minutes
+                n_intervals=0,
             ),
-        ]
+            dcc.Interval(
+                id="worker-status-interval",
+                interval=60 * 1_000,  # 1 minute
+                n_intervals=0,
+            ),
+        ],
     )

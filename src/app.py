@@ -1,4 +1,5 @@
 import sqlite3
+
 from flask import jsonify
 from dash import Dash
 from flask_caching import Cache
